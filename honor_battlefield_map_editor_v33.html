@@ -1,0 +1,3666 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>荣耀战场地图设计编辑器</title>
+  <style>
+    :root{
+      --bg:#0b0f16;
+      --panel:#0f172a;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:rgba(255,255,255,0.10);
+      --shadow: 0 18px 50px rgba(0,0,0,0.35);
+      --radius:16px;
+      --accent:#60a5fa;
+      --danger:#fb7185;
+      --topH:56px;
+    }
+    body.day{
+      --bg:#f6f7fb;
+      --panel:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:rgba(15,23,42,0.12);
+      --shadow: 0 18px 50px rgba(15,23,42,0.10);
+      --accent:#2563eb;
+      --danger:#e11d48;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",Arial; background:var(--bg); color:var(--text); }
+    button,input,select{ font-family:inherit; }
+    .app{ height:100%; display:flex; flex-direction:column; }
+
+    /* Top bar */
+    .topbar{
+      height:var(--topH);
+      display:grid;
+      grid-template-columns: 360px 1fr 460px;
+      align-items:center;
+      padding:0 12px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      backdrop-filter: blur(10px);
+    }
+    body.day .topbar{
+      background:linear-gradient(180deg, rgba(15,23,42,0.03), rgba(15,23,42,0.01));
+    }
+    .topLeft,.topRight{ display:flex; align-items:center; gap:10px; min-width:0; height:100%; }
+    .topCenter{ text-align:center; font-weight:900; letter-spacing:1px; }
+
+    .pill{
+      display:flex; align-items:center; gap:8px;
+      height:38px;
+      padding:0 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:rgba(255,255,255,0.04);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      min-width:0;
+    }
+    body.day .pill{ background:rgba(15,23,42,0.03); }
+    .pill label{ font-size:14px; /* v24: +20% */ color:var(--muted); white-space:nowrap; }
+    .pill input[type="text"]{
+      width: 240px;
+      max-width:100%;
+      background:transparent;
+      border:none;
+      outline:none;
+      color:var(--text);
+      font-size:13px;
+      line-height:38px;
+    }
+
+    .btn{
+      height:38px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      padding:0 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-size:13px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      white-space:nowrap;
+      user-select:none;
+    }
+    body.day .btn{ background:rgba(15,23,42,0.03); }
+    .btn:hover{ background:rgba(255,255,255,0.07); }
+    body.day .btn:hover{ background:rgba(15,23,42,0.06); }
+    .btn.primary{ border-color:rgba(96,165,250,0.5); background:rgba(96,165,250,0.16); }
+    body.day .btn.primary{ background:rgba(37,99,235,0.12); border-color:rgba(37,99,235,0.35); }
+    .btn.danger{ border-color:rgba(251,113,133,0.5); background:rgba(251,113,133,0.12); }
+    body.day .btn.danger{ background:rgba(225,29,72,0.10); border-color:rgba(225,29,72,0.30); }
+    .btn.toggled{ border-color: rgba(96,165,250,0.80); background: rgba(96,165,250,0.22); }
+
+    .iconBtn{
+      width:38px; height:38px;
+      display:grid; place-items:center;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.05);
+      cursor:pointer;
+      box-shadow: var(--shadow);
+      user-select:none;
+      flex:0 0 auto;
+    }
+    body.day .iconBtn{ background:rgba(15,23,42,0.03); }
+    .iconBtn:hover{ background:rgba(255,255,255,0.08); }
+    body.day .iconBtn:hover{ background:rgba(15,23,42,0.06); }
+    .qmark{ font-weight:900; font-size:18px; }
+    .moon,.sun{ font-size:16px; }
+
+    /* Search */
+    .searchWrap{
+      display:flex; align-items:center; gap:8px;
+      height:38px;
+      padding:0 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:rgba(255,255,255,0.04);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      width: 100%;
+      max-width: 360px;
+      min-width:0;
+    }
+    body.day .searchWrap{ background:rgba(15,23,42,0.03); }
+    .searchWrap input{
+      flex:1; min-width:0; height:36px;
+      background:transparent; border:none; outline:none;
+      color:var(--text); font-size:13px;
+    }
+
+    /* Main */
+    .main{ position:relative; flex:1; min-height:0; overflow:hidden; }
+    canvas{
+      width:100%; height:100%; display:block;
+      background:
+        radial-gradient(1200px 800px at 60% 40%, rgba(96,165,250,0.05), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent 55%),
+        var(--bg);
+    }
+    body.day canvas{
+      background:
+        radial-gradient(1200px 800px at 60% 40%, rgba(37,99,235,0.06), transparent 55%),
+        linear-gradient(180deg, rgba(15,23,42,0.02), transparent 55%),
+        var(--bg);
+    }
+
+    /* Floating panels */
+    .panel{
+      position:absolute;
+      top:12px; bottom:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      z-index:20;
+    }
+    body.day .panel{ background:linear-gradient(180deg, rgba(15,23,42,0.02), rgba(15,23,42,0.01)); }
+
+    /* Left panel */
+    .leftPanel{ left:12px; width: 340px; }
+    .leftPanel.collapsed{ width:56px; }
+    .leftHeader{ padding:12px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+    .leftTitleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .leftTitle{ font-weight:900; }
+    .leftSub{ font-size:12px; color:var(--muted); line-height:1.35; }
+    .collapseBtn{
+      width:46px; height:34px;
+      display:grid; place-items:center;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.05);
+      cursor:pointer;
+      user-select:none;
+    }
+    body.day .collapseBtn{ background:rgba(15,23,42,0.03); }
+    .collapseBtn:hover{ background:rgba(255,255,255,0.08); }
+    body.day .collapseBtn:hover{ background:rgba(15,23,42,0.06); }
+    .leftPanel.collapsed .leftHeader,
+    .leftPanel.collapsed .leftActions{ display:none; }
+    
+    .legendScroller{
+      flex:1; min-height:0; overflow:auto; padding:10px;
+      direction: rtl; /* scrollbar left edge */
+    }
+    .legendInner{ direction:ltr; display:flex; flex-direction:column; gap:10px; }
+
+    .group{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(17,27,51,0.55);
+      overflow:hidden;
+    }
+    body.day .group{ background:rgba(255,255,255,0.70); }
+    .group.selected{
+      border-color: rgba(96,165,250,0.65);
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.12) inset;
+    }
+    .groupHeader{
+      padding:10px 10px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      user-select:none;
+      cursor:pointer;
+    }
+    body.day .groupHeader{ border-bottom:1px solid rgba(15,23,42,0.08); }
+    .groupName{
+      font-weight:900; font-size:13px;
+      outline:none; border-radius:10px;
+      padding:4px 6px;
+    }
+    .groupName:focus{ background:rgba(255,255,255,0.06); }
+    body.day .groupName:focus{ background:rgba(15,23,42,0.05); }
+    .groupMeta{ font-size:12px; color:var(--muted); }
+    .groupBody{ padding:8px; display:flex; flex-direction:column; gap:8px; }
+
+    .item{
+      display:grid;
+      grid-template-columns: 14px 1fr auto;
+      gap:10px;
+      padding:10px;
+      border-radius:14px;
+      border:1px solid transparent;
+      background:rgba(255,255,255,0.03);
+      cursor:pointer;
+      user-select:none;
+    }
+    body.day .item{ background:rgba(15,23,42,0.03); }
+    .item:hover{ background:rgba(255,255,255,0.06); }
+    body.day .item:hover{ background:rgba(15,23,42,0.06); }
+    .item.selected{ border-color:rgba(96,165,250,0.65); background:rgba(96,165,250,0.12); }
+
+    .chip{
+      width:14px; height:14px;
+      border-radius:4px;
+      border:1px solid rgba(255,255,255,0.18);
+      margin-top:2px;
+    }
+    body.day .chip{ border:1px solid rgba(15,23,42,0.18); }
+    .itemTitle{ font-weight:800; font-size:13px; }
+    .itemMeta{ margin-top:4px; font-size:11px; color:var(--muted); line-height:1.25; }
+
+    /* Left actions */
+    .leftActions{
+      padding:10px;
+      border-top:1px solid var(--border);
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+    .leftActions .btn{ width:100%; }
+
+    /* Right panel */
+    .rightPanel{ right:12px; width: 380px; }
+    .rightHeader{ padding:12px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:10px; }
+    .rightTitle{ font-weight:900; }
+    .rightBody{
+      flex:1;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .section{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(17,27,51,0.55);
+      overflow:hidden;
+      flex: 0 0 auto;
+    }
+    body.day .section{ background:rgba(255,255,255,0.70); }
+    .sectionHeader{
+      padding:10px 12px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .sectionTitle{ font-weight:900; font-size:13px; }
+    .chev{ color:var(--muted); font-size:14px; }
+    .sectionBody{ padding:12px; border-top:1px solid rgba(255,255,255,0.08); }
+    body.day .sectionBody{ border-top:1px solid rgba(15,23,42,0.08); }
+    .section.collapsed .sectionBody{ display:none; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+
+    .field{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .field label{ font-size:12px; color:var(--muted); }
+    .field input, .field select{
+      width:100%;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      outline:none;
+      font-size:13px;
+      min-width:0;
+    }
+    body.day .field input, body.day .field select{
+      border:1px solid rgba(15,23,42,0.12);
+      background:rgba(15,23,42,0.03);
+    }
+    .field input[type="range"]{ padding:0; height:28px; }
+    .hintText{ font-size:12px; color:var(--muted); line-height:1.45; }
+
+    .inlineRow{ display:flex; align-items:center; gap:8px; }
+    .inlineRow .inlineLabel{ font-size:12px; color:var(--muted); white-space:nowrap; }
+    .inlineRow input.compact{ width: 110px; padding:8px 10px; }
+
+    .pctWrap{ display:flex; align-items:center; gap:6px; width:100%; justify-content:flex-end; padding-right:8px; } /* v23: pctWrap align right */
+    input.pctInput{ width: 92px !important; text-align:right; }
+    .pctSign{ font-size:12px; color:var(--muted); user-select:none; }
+
+    .colorGrid{ display:grid; grid-template-columns: repeat(10, 1fr); gap:6px; }
+    .swatch{
+      width:100%; aspect-ratio: 1 / 1;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.14);
+      cursor:pointer;
+      position:relative;
+    }
+    body.day .swatch{ border:1px solid rgba(15,23,42,0.16); }
+    .swatch:hover{ outline:2px solid rgba(96,165,250,0.35); }
+    .swatch.active::after{
+      content:"";
+      position:absolute; inset:0;
+      border-radius:10px;
+      outline:3px solid rgba(96,165,250,0.95);
+      outline-offset:-3px;
+    }
+
+    .selectRect{
+      position:absolute;
+      border:2px dashed rgba(96,165,250,0.9);
+      background:rgba(96,165,250,0.10);
+      pointer-events:none;
+      z-index: 5;
+      display:none;
+    }
+
+    .status{
+      position:absolute;
+      left:50%;
+      bottom:12px;
+      transform: translateX(-50%);
+      background:rgba(15,23,42,0.78);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:999px;
+      padding:8px 12px;
+      color:var(--text);
+      font-size:12px;
+      z-index: 12;
+      max-width: 80%;
+      text-align:center;
+      pointer-events:none;
+    }
+    body.day .status{
+      background:rgba(255,255,255,0.85);
+      border:1px solid rgba(15,23,42,0.12);
+      color:var(--text);
+    }
+
+    .ctrlRow{ display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+    .vBtns{ display:flex; flex-direction:column; gap:6px; }
+    .miniBtn{
+      width:28px; height:28px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.05);
+      color:var(--text);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      user-select:none;
+    }
+    body.day .miniBtn{ background:rgba(15,23,42,0.03); }
+    .miniBtn:hover{ background:rgba(255,255,255,0.08); }
+    body.day .miniBtn:hover{ background:rgba(15,23,42,0.06); }
+    .miniBtn:active{ transform: translateY(1px); }
+
+    .miniBtn.moveBtn{
+      width:52px;
+      height:34px;
+      border-radius:12px;
+      font-size:12px;
+      padding:0 10px;
+    }
+    .miniBtn.trashBtn{
+      width:52px;
+      height:34px;
+      border-radius:12px;
+      font-size:12px;
+      padding:0 10px;
+      border-color: rgba(251,113,133,0.45);
+      background: rgba(251,113,133,0.10);
+    }
+    body.day .miniBtn.trashBtn{
+      border-color: rgba(225,29,72,0.30);
+      background: rgba(225,29,72,0.08);
+    }
+
+    .modalOverlay{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0.65);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 999;
+    }
+    body.day .modalOverlay{ background:rgba(15,23,42,0.45); }
+    .modal{
+      width:min(900px, 40vw);
+      max-width: 900px;
+      min-width: 520px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:20px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+      overflow:hidden;
+      color:var(--text);
+    }
+    body.day .modal{
+      background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+      border:1px solid rgba(15,23,42,0.12);
+      box-shadow: 0 30px 90px rgba(15,23,42,0.20);
+    }
+    .modalHeader{
+      padding:14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(255,255,255,0.10);
+    }
+    body.day .modalHeader{ border-bottom:1px solid rgba(15,23,42,0.10); }
+    .modalTitle{ font-weight:900; }
+    .modalBody{
+      padding:16px;
+      font-size:13px;
+      line-height:1.55;
+      max-height: 55vh;
+      overflow:auto;
+    }
+    .modalFooter{
+      padding:14px 16px;
+      border-top:1px solid rgba(255,255,255,0.10);
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    body.day .modalFooter{ border-top:1px solid rgba(15,23,42,0.10); }
+
+    .listGrid{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .listItem{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.04);
+      cursor:pointer;
+      user-select:none;
+    }
+    body.day .listItem{
+      border:1px solid rgba(15,23,42,0.10);
+      background:rgba(15,23,42,0.03);
+    }
+    .listItem:hover{ outline:2px solid rgba(96,165,250,0.25); }
+    .listItem .small{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+    @media (max-width: 1200px){
+      .topbar{ grid-template-columns: 1fr; gap:8px; height:auto; padding:10px 12px; }
+      .topLeft,.topRight{ justify-content:center; height:auto; }
+      .topCenter{ order:-1; padding:4px 0; }
+    }
+  
+    /* === v4 tweaks === */
+
+    /* Scrollbar (dark/day) */
+    .legendScroller, .rightBody, .modalBody{
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,0.35) rgba(0,0,0,0.20);
+    }
+    body.day .legendScroller, body.day .rightBody, body.day .modalBody{
+      scrollbar-color: rgba(15,23,42,0.35) rgba(15,23,42,0.06);
+    }
+    .legendScroller::-webkit-scrollbar, .rightBody::-webkit-scrollbar, .modalBody::-webkit-scrollbar{ width: 10px; height: 10px; }
+    .legendScroller::-webkit-scrollbar-track, .rightBody::-webkit-scrollbar-track, .modalBody::-webkit-scrollbar-track{
+      background: rgba(0,0,0,0.20);
+    }
+    body.day .legendScroller::-webkit-scrollbar-track, body.day .rightBody::-webkit-scrollbar-track, body.day .modalBody::-webkit-scrollbar-track{
+      background: rgba(15,23,42,0.06);
+    }
+    .legendScroller::-webkit-scrollbar-thumb, .rightBody::-webkit-scrollbar-thumb, .modalBody::-webkit-scrollbar-thumb{
+      background: rgba(148,163,184,0.30);
+      border: 2px solid rgba(0,0,0,0.20);
+      border-radius: 999px;
+    }
+    body.day .legendScroller::-webkit-scrollbar-thumb, body.day .rightBody::-webkit-scrollbar-thumb, body.day .modalBody::-webkit-scrollbar-thumb{
+      background: rgba(15,23,42,0.28);
+      border: 2px solid rgba(15,23,42,0.06);
+    }
+
+    /* Day mode: remove 3D shadows on buttons */
+    body.day .btn{ box-shadow:none; }
+    body.day .iconBtn{ box-shadow:none; }
+
+    /* Map size inline inputs should match other inputs */
+    .inlineRow input{
+      width:100%;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      outline:none;
+      font-size:13px;
+      min-width:0;
+    }
+    body.day .inlineRow input{
+      border:1px solid rgba(15,23,42,0.12);
+      background:rgba(15,23,42,0.03);
+    }
+
+    /* Dark mode: selected item border frame removed */
+    /* Align control area in list (up/down + delete) */
+    .ctrlRow{ align-items:flex-start; }
+
+    /* Fake input for selCount alignment */
+    .fakeInput{
+      width:100%;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      outline:none;
+      font-size:13px;
+      min-width:0;
+    }
+    body.day .fakeInput{
+      border:1px solid rgba(15,23,42,0.12);
+      background:rgba(15,23,42,0.03);
+    }
+
+    /* Side toggle button (same shape/position for show/hide) */
+    .sideToggle{
+      position:absolute;
+      top:50%;
+      right:-22px;
+      transform: translateY(-50%);
+      width:32px; height:32px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.06);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      user-select:none;
+      z-index: 30;
+      box-shadow: var(--shadow);
+    }
+    body.day .sideToggle{ background:rgba(15,23,42,0.03); box-shadow:none; }
+
+    /* Compact modals for confirm/help */
+    .modal.compact{
+      width: min(520px, 70vw);
+      min-width: 320px;
+    }
+    .modal.compact .modalBody{
+      text-align:center;
+    }
+
+
+    /* === v6 list layout fixes === */
+    .groupHeader{ min-height:54px; }
+    .item{ min-height:68px; align-items:start; }
+    .item > *{ min-width:0; }
+    .itemBox{ min-width:0; }
+    .groupHeader > *{ min-width:0; }
+    .groupName, .groupSub, .itemTitle, .itemMeta{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .itemMeta{ margin-top:4px; }
+
+
+    body:not(.day) .group.selected{
+      border-color: rgba(96,165,250,0.75);
+      background: rgba(96,165,250,0.10);
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.18) inset;
+    }
+
+
+    body:not(.day) .item.selected,
+    body:not(.day) .group.selected{
+      border-color: transparent;
+      background: rgba(96,165,250,0.16);
+      box-shadow: none;
+    }
+
+
+    /* === v8 left buttons: consistent + no wrap === */
+    .miniBtn{
+      height: 30px;
+      min-width: 74px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .iconBtn{
+      width: 30px;
+      height: 30px;
+      border-radius: 12px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      white-space: nowrap;
+    }
+
+    /* Left list typography (smaller, no wrap) */
+    .groupName{ font-size: 12px; line-height: 1.1; }
+    .groupSub{ font-size: 11px; line-height: 1.1; }
+    .itemTitle{ font-size: 12px; line-height: 1.1; }
+    .itemMeta{ font-size: 11px; line-height: 1.1; }
+
+
+    /* === v10 fix: selection rect overlay must not block clicks === */
+    #selectRect{ pointer-events:none; }
+
+
+    /* === v10 selection style (B) === */
+    body.day .item.selected,
+    body.day .group.selected{
+      border-color: rgba(59,130,246,0.85);
+      background: rgba(59,130,246,0.10);
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.16) inset;
+    }
+    body:not(.day) .item.selected,
+    body:not(.day) .group.selected{
+      border-color: transparent;
+      background: rgba(96,165,250,0.22);
+      box-shadow: none;
+    }
+
+
+    /* === v10 danger button (group delete) === */
+    .dangerBtn{
+      height: 30px;
+      min-width: 74px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      border-radius: 12px;
+      border: 1px solid rgba(239,68,68,0.35);
+      background: rgba(239,68,68,0.10);
+      color: rgba(220,38,38,0.95);
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .dangerBtn:hover{
+      background: rgba(239,68,68,0.14);
+      border-color: rgba(239,68,68,0.45);
+    }
+    body:not(.day) .dangerBtn{
+      border-color: rgba(239,68,68,0.00);
+      background: rgba(239,68,68,0.78);
+      color: rgba(255,255,255,0.96);
+    }
+    body:not(.day) .dangerBtn:hover{
+      background: rgba(239,68,68,0.86);
+    }
+
+
+    
+    /* === v12 side toggle (half-circle outside) === */
+    .sideToggle{
+      position:absolute;
+      top:50%;
+      right:-24px; /* protrude outside */
+      transform: translateY(-50%);
+      width:24px;
+      height:52px;
+      border-radius: 0 26px 26px 0; /* right half-circle */
+      border:1px solid var(--border);
+      border-left:none;
+      background: rgba(255,255,255,0.06);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      z-index: 60;
+    }
+    body.day .sideToggle{ background: rgba(15,23,42,0.03); }
+    .sideToggle:hover{ background: rgba(255,255,255,0.10); }
+    body.day .sideToggle:hover{ background: rgba(15,23,42,0.06); }
+    .sideToggle span{ font-size:16px; line-height:1; }
+
+
+    /* === v12 left list: stable rows (no jump) === */
+    .groupHeader, .item{ height: 68px; } /* fixed height to avoid grow/shrink */
+    .groupHeader{ align-items:center; }
+    .groupHeaderRight, .itemRight{ flex: 0 0 108px; display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+    .groupHeaderLeft, .itemBox{ flex: 1 1 auto; min-width:0; }
+    .groupHeaderLeft{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .itemBox{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .itemMeta{ opacity:0.9; }
+    .btnGhost{ visibility:hidden; pointer-events:none; } /* reserve space without showing */
+
+    /* group header buttons in one row */
+    .groupBtnRow{ display:flex; flex-direction:row; align-items:center; gap:8px; }
+    .dangerBtnInline{ height:30px; min-width:74px; padding:0 10px; border-radius:12px; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; font-size:12px; line-height:1; cursor:pointer; }
+    body.day .dangerBtnInline{ border:1px solid rgba(239,68,68,0.35); background: rgba(239,68,68,0.10); color: rgba(220,38,38,0.95); }
+    body:not(.day) .dangerBtnInline{ border:1px solid rgba(239,68,68,0.0); background: rgba(239,68,68,0.78); color: rgba(255,255,255,0.96); }
+    body.day .dangerBtnInline:hover{ background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.45); }
+    body:not(.day) .dangerBtnInline:hover{ background: rgba(239,68,68,0.86); }
+
+    /* collapsed thumbnail view */
+    .leftPanel.collapsed .legendScroller{ padding:8px 6px; }
+    .leftPanel.collapsed .group{ padding:0; border-radius:16px; }
+    .leftPanel.collapsed .groupHeader{ height:40px; padding:10px; justify-content:flex-start; }
+    .leftPanel.collapsed .groupItems{ padding:0 0 6px 0; }
+    .leftPanel.collapsed .item{ height:34px; padding:6px; }
+    .leftPanel.collapsed .groupHeaderLeft,
+    .leftPanel.collapsed .groupHeaderRight,
+    .leftPanel.collapsed .itemBox,
+    .leftPanel.collapsed .itemRight{ display:none !important; }
+    .leftPanel.collapsed .chip{ width:14px; height:14px; margin:0 auto; }
+    .leftPanel.collapsed .groupIcon{
+      width:14px; height:14px; border-radius:4px;
+      border:1px solid rgba(148,163,184,0.6);
+      background: rgba(148,163,184,0.10);
+      margin:0 auto;
+    }
+    body.day .leftPanel.collapsed .groupIcon{
+      border:1px solid rgba(15,23,42,0.22);
+      background: rgba(15,23,42,0.04);
+    }
+    .leftPanel.collapsed .groupHeader{ cursor:pointer; }
+
+
+    /* === v13: left panel must allow toggle protrusion === */
+    .leftPanel{ overflow: visible !important; }
+
+
+    /* === v13: left list buttons shrink ~40% === */
+    .leftPanel .miniBtn{
+      height: 21px; /* v24: +15% */
+      min-width: 53px;
+      padding: 0 7px;
+      border-radius: 11px;
+      font-size: 12px;
+    }
+    .leftPanel .iconBtn{
+      width: 21px; /* v24: +15% */
+      height: 21px;
+      border-radius: 11px;
+      font-size: 12px;
+    }
+    .leftPanel .vBtns{ gap:6px; }
+    .leftPanel .groupBtnRow{ gap:6px; }
+
+
+    /* === v13: item meta no ellipsis (clip) === */
+    .itemMeta{
+      text-overflow: clip !important;
+    }
+
+
+    /* === v13: enforce half-circle toggle === */
+    .sideToggle{
+      width:24px !important;
+      height:52px !important;
+      right:-24px !important;
+      border-radius: 0 26px 26px 0 !important;
+      border-left: none !important;
+    }
+
+
+    /* === v14: group delete sizing matches other left buttons === */
+    .leftPanel .dangerBtnInline{
+      height: 18px;
+      min-width: 46px;
+      padding: 0 6px;
+      border-radius: 9px;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    /* v14: group name edit width shorter ~25% */
+    .groupHeaderLeft{ max-width: 75%; }
+
+    /* v14: collapsed thumbnail icons align with normal chip position (no centering) */
+    .leftPanel.collapsed .chip{ margin: 0; }
+    .leftPanel.collapsed .groupIcon{ margin: 0; }
+    .leftPanel.collapsed .groupHeader{ justify-content:flex-start; }
+
+
+    /* === v16: keep icon x-position consistent between expanded/collapsed === */
+    .leftPanel.collapsed .groupHeader{ padding:10px; }
+    .leftPanel.collapsed .item{ padding:10px; }
+    .leftPanel.collapsed{ width:40px; }
+
+    /* Group index badge */
+    .groupBadge{
+      width:18px; height:18px;
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:700;
+      border:1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      flex:0 0 auto;
+      margin-top:2px;
+    }
+    body.day .groupBadge{
+      border:1px solid rgba(15,23,42,0.18);
+      background: rgba(15,23,42,0.03);
+      color: rgba(15,23,42,0.80);
+    }
+
+    /* Group name editable width shorter ~25% */
+    .groupName{
+      display:inline-block;
+      width:75%;
+      max-width:75%;
+    }
+
+
+    /* === v17: collapsed list keeps same row rhythm & icon x-position (only narrow width) === */
+    .leftPanel.collapsed{ width:40px; }
+    .leftPanel.collapsed .groupHeader{ height:68px !important; padding:10px !important; justify-content:flex-start !important; }
+    .leftPanel.collapsed .item{ height:68px !important; padding:10px !important; }
+    .leftPanel.collapsed .chip{ margin:0 !important; }
+    .leftPanel.collapsed .groupBadge{ margin:0 !important; }
+
+
+    /* === v23: list meta/action rows === */
+    .itemBox{ gap:2px; }
+    .itemMetaRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-size:12px;
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .itemTL, .itemR{ white-space:nowrap; }
+    .itemActionRow{
+      display:flex;
+      margin-top:8px; /* v24: more gap */
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      height:21px; /* v24: reserve for bigger buttons */
+    }
+
+
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:18px;
+      transform:translateX(-50%) translateY(10px);
+      opacity:0;
+      pointer-events:none;
+      padding:10px 14px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,0.55);
+      color: rgba(255,255,255,0.92);
+      transition: 200ms ease;
+      z-index: 200;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    body.day .toast{
+      background: rgba(15,23,42,0.72);
+      color: rgba(255,255,255,0.95);
+    }
+    .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+
+    .btn.active{
+      outline: 2px solid rgba(96,165,250,0.55);
+      outline-offset: 1px;
+    }
+
+
+    /* === v30: overlap report modal list === */
+    .repHead{ display:flex; gap:14px; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--border); border-radius:14px; background:rgba(255,255,255,0.04); }
+    body.day .repHead{ background:rgba(15,23,42,0.03); }
+    .repList{ margin-top:10px; max-height: min(60vh, 520px); overflow:auto; padding-right:4px; }
+    .repRow{ display:flex; gap:10px; padding:10px 10px; border:1px solid rgba(255,255,255,0.08); border-radius:14px; background:rgba(255,255,255,0.03); margin-bottom:8px; }
+    body.day .repRow{ border:1px solid rgba(15,23,42,0.10); background:rgba(15,23,42,0.02); }
+    .repRank{ width:28px; height:28px; border-radius:10px; display:grid; place-items:center; font-weight:800; font-size:12px; border:1px solid var(--border); background:rgba(255,255,255,0.05); flex:0 0 auto; }
+    body.day .repRank{ background:rgba(15,23,42,0.03); }
+    .repTitle{ font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .repK{ font-weight:700; color:var(--muted); }
+    .repSub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+
+    /* === v32: overlap report table + large modal === */
+    .modal.large{ width: min(1100px, 88vw); min-width: 520px; }
+    .modal.large .modalBody{ max-height: min(78vh, 760px); }
+    .repTableWrap{ margin-top:10px; max-height: min(70vh, 700px); overflow:auto; border:1px solid var(--border); border-radius:14px; }
+    .repTable{ width:100%; border-collapse: collapse; font-size:13px; }
+    .repTable thead th{ position: sticky; top: 0; background: rgba(0,0,0,0.18); backdrop-filter: blur(6px); text-align:left; padding:10px 10px; border-bottom:1px solid rgba(255,255,255,0.10); }
+    body.day .repTable thead th{ background: rgba(15,23,42,0.06); border-bottom:1px solid rgba(15,23,42,0.12); }
+    .repTable tbody td{ padding:10px 10px; border-bottom:1px solid rgba(255,255,255,0.06); white-space:nowrap; }
+    body.day .repTable tbody td{ border-bottom:1px solid rgba(15,23,42,0.08); }
+    .tNames{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 640px; }
+    .tRank{ width:56px; font-weight:800; }
+    .tSq{ width:70px; }
+    .tK{ width:70px; }
+    .tPct{ width:110px; font-variant-numeric: tabular-nums; }
+    .sq{ display:inline-grid; place-items:center; width:18px; height:18px; border-radius:6px; border:1px solid var(--border); background:rgba(255,255,255,0.06); font-weight:800; font-size:12px; }
+    body.day .sq{ background:rgba(15,23,42,0.03); }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="topLeft">
+      <div class="pill" style="width:100%; max-width: 340px;">
+        <label>地图名称</label>
+        <input id="mapName" type="text" value="未命名地图"/>
+      </div>
+    </div>
+
+    <div class="topCenter">荣耀战场地图设计编辑器</div>
+
+    <div class="topRight" style="justify-content:flex-end;">
+      <div class="searchWrap">
+        <input id="ideaInput" placeholder="联想输入：例如 工厂 / 军舰 / 实验室 …" />
+        <button id="ideaBtn" class="btn primary">搜索</button>
+      </div>
+      <div class="iconBtn" id="themeBtn" title="夜间/白天切换"><div id="themeIcon" class="moon">🌙</div></div>
+      <div class="iconBtn" id="exportBtn" title="导出图片"><div style="font-size:16px;line-height:1;">📷</div></div>
+      <div class="iconBtn" id="helpBtn" title="提示"><div class="qmark">?</div></div>
+    </div>
+  </div>
+
+  <div class="main" id="main">
+    <canvas id="c"></canvas>
+    <div class="selectRect" id="selectRect"></div>
+    <div class="status" id="status">未选中声源</div>
+
+    <!-- Left Panel -->
+    <aside class="panel leftPanel" id="leftPanel">
+      <div class="leftHeader">
+        <div class="leftTitleRow">
+          <div class="leftTitle">声源列表</div>
+          </div>
+        <div class="leftSub">
+          列表：单击选中/取消；Ctrl 多选；Shift 区间选择。<br/>
+          画布：Ctrl+拖拽框选；Ctrl+点击多选；空白单击清空。<br/>
+          删除：Delete/Del/Backspace；撤销：Ctrl+Z / Cmd+Z
+        </div>
+      </div>
+
+      <div class="legendScroller"><div class="legendInner" id="legendInner"></div></div>
+
+      <div class="leftActions">
+        <button class="btn primary" id="addGroupBtn">+ 新建组</button>
+        <button class="btn primary" id="addSourceBtn">+ 新建声源</button>
+        <button class="btn danger" id="delBtn">删除</button>
+        <button class="btn" id="clearSelBtn">清空选择</button>
+      </div>
+      <div class="sideToggle" id="leftSideToggle" title="隐藏/弹出"><span id="leftSideIcon"><</span></div>
+    </aside>
+
+    <!-- Right Panel -->
+    <aside class="panel rightPanel" id="rightPanel">
+      <div class="rightHeader"><div class="rightTitle">功能面板</div></div>
+
+      <div class="rightBody">
+        <!-- View -->
+        <div class="section" id="secView">
+          <div class="sectionHeader">
+            <div class="sectionTitle">视图</div>
+            <div class="chev" data-chev>▾</div>
+          </div>
+          <div class="sectionBody">
+            <div class="grid3">
+              <div class="field">
+                <label>缩放（20% ~ 500%）</label>
+                <input id="zoom" type="range" min="0.04" max="1.00" step="0.005" value="0.20"/>
+              </div>
+              <div class="field">
+                <label>缩放百分比</label>
+                <div class="pctWrap">
+                  <input id="zoomPctInput" class="pctInput" type="number" min="20" max="500" step="1" value="100"/>
+                  <div class="pctSign">%</div>
+                </div>
+              </div>
+            </div>
+            <div class="grid2" style="margin-top:10px;">
+              <button class="btn" id="centerBtn">居中</button>
+              <button class="btn" id="overlapBtn" title="显示重叠区域的数量">显示重叠</button>
+              <button class="btn" id="overlapAreaBtn" title="计算重叠面积与层数占比">重叠面积</button>
+            </div>
+            <div class="grid2" style="margin-top:10px;">
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);">
+                <input id="toggleMap" type="checkbox" checked/> 地图边界
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);">
+                <input id="toggleBand" type="checkbox" checked/> 软警戒带
+              </label>
+            </div>
+            <div class="grid2" style="margin-top:8px;">
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);">
+                <input id="toggleGrid" type="checkbox" checked/> 网格
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);">
+                <input id="toggleNames" type="checkbox" checked/> 名称
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Map size -->
+        <div class="section" id="secMap">
+          <div class="sectionHeader">
+            <div class="sectionTitle">地图尺寸</div>
+            <div class="chev" data-chev>▾</div>
+          </div>
+          <div class="sectionBody">
+            <div class="grid2">
+              <div class="inlineRow">
+                <div class="inlineLabel">宽 W</div>
+                <input id="mapW" type="number" min="200" step="10" value="4400"/>
+              </div>
+              <div class="inlineRow">
+                <div class="inlineLabel">高 H</div>
+                <input id="mapH" type="number" min="200" step="10" value="3300"/>
+              </div>
+              <div class="inlineRow">
+                <div class="inlineLabel">旋转°</div>
+                <input id="mapRot" type="number" min="0" max="360" step="1" value="0"/>
+              </div>
+            </div>
+            <div class="hintText" style="margin-top:10px;">
+              修改会影响边界与边界软警戒带（内缩300）的位置。
+            </div>
+          </div>
+        </div>
+
+        <!-- Properties -->
+        <div class="section" id="secProps">
+          <div class="sectionHeader">
+            <div class="sectionTitle">属性</div>
+            <div class="chev" data-chev>▾</div>
+          </div>
+          <div class="sectionBody">
+            <div class="grid2">
+              <div class="field">
+                <label>选中状态</label>
+                <input id="selCountText" class="fakeInput" type="text" value="已选中：0" disabled/>
+              </div>
+              <div class="field">
+                <label>字号</label>
+                <input id="batchLabelSize" type="number" min="8" max="64" step="8" value="16"/>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:10px;">
+              <label>名称（只对主选中生效）</label>
+              <input id="nameInput" type="text" placeholder="例如：A 泵站 / CORE 舰桥"/>
+            </div>
+
+            <div class="grid3" style="margin-top:10px;">
+              <div class="field">
+                <label>左上角 X</label>
+                <input id="xInput" type="number" step="1"/>
+              </div>
+              <div class="field">
+                <label>左上角 Y</label>
+                <input id="yInput" type="number" step="1"/>
+              </div>
+              <div class="field">
+                <label>半径 R</label>
+                <input id="rInput" type="number" min="1" step="1"/>
+              </div>
+            </div>
+
+            <div class="grid2" style="margin-top:10px;">
+              <div class="field">
+                <label>填充不透明度</label>
+                <input id="fillPct" type="number" min="0" max="100" step="1" value="12"/>
+              </div>
+              <div class="field">
+                <label>描边不透明度</label>
+                <input id="strokePct" type="number" min="0" max="100" step="1" value="90"/>
+              </div>
+            </div>
+
+            <div class="grid2" style="margin-top:10px;">
+              <div class="field">
+                <label></label>
+                <input id="fillPctRange" type="range" min="0" max="100" step="1" value="12"/>
+              </div>
+              <div class="field">
+                <label></label>
+                <input id="strokePctRange" type="range" min="0" max="100" step="1" value="90"/>
+              </div>
+            </div>
+
+            <div class="grid3" style="margin-top:10px;">
+              <div class="field">
+                <label>描边宽度</label>
+                <input id="strokeW" type="number" min="1" max="8" step="1" value="2"/>
+              </div>
+              <div class="field">
+                <label>（预留）</label>
+                <input type="text" disabled value="—"/>
+              </div>
+              <div class="field">
+                <label>（预留）</label>
+                <input type="text" disabled value="—"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colors -->
+        <div class="section" id="secColor">
+          <div class="sectionHeader">
+            <div class="sectionTitle">颜色</div>
+            <div class="chev" data-chev>▾</div>
+          </div>
+          <div class="sectionBody">
+<div class="field">
+              <label>填充颜色</label>
+              <div class="colorGrid" id="fillGrid"></div>
+            </div>
+            <div class="field" style="margin-top:10px;">
+              <label>描边颜色</label>
+              <div class="colorGrid" id="strokeGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Help Modal -->
+    <div class="modalOverlay" id="helpModal">
+      <div class="modal">
+        <div class="modalHeader">
+          <div class="modalTitle">提示</div>
+          <button class="btn" id="closeHelp">关闭</button>
+        </div>
+        <div class="modalBody">
+          <b>画布</b><br/>
+          - 拖拽空白处：平移；滚轮：缩放（20%~500%，以 0.20 = 100%）<br/>
+          - Ctrl+拖拽：矩形框选（多选）<br/>
+          - Ctrl+点击：多选/取消该声源<br/>
+          - 单击空白：清空选择；单击声源：直接单选为该声源<br/><br/>
+          <b>列表</b><br/>
+          - 单击选中/取消；Ctrl 多选；Shift 区间选择<br/>
+          - 点击组标题可选中组；新建声源将加入选中组<br/>
+          - 只有在“选中声源或选中组”时，才显示上移/下移/移动等控制<br/>
+          - 右键声源：快速移动到其它分组<br/><br/>
+          <b>坐标规则</b><br/>
+          坐标以“外切正方形左上角”为准：<code>(x, y)</code>，圆心 = <code>(x+R, y+R)</code>。<br/>
+          名称永远按圆心 Y 轴居中显示。<br/><br/>
+          <b>删除/撤销</b><br/>
+          Delete / Del / Backspace 删除；Ctrl+Z / Cmd+Z 撤销（最多30步）。<br/>
+        </div>
+      
+    <!-- Overlap Report Modal -->
+    <div class="modalOverlay" id="overlapReportModal">
+      <div class="modal large">
+        <div class="modalHeader">
+          <div class="modalTitle">重叠面积分析结果</div>
+          <button class="btn" id="closeOverlapReport">关闭</button>
+        </div>
+        <div class="modalBody">
+          <div class="repHead" id="overlapReportHead"></div>
+          <div class="repTableWrap">
+            <table class="repTable">
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th>序号</th>
+                  <th>层数</th>
+                  <th>重叠区域名</th>
+                  <th>占全图%</th>
+                </tr>
+              </thead>
+              <tbody id="overlapReportRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</div>
+    </div>
+
+    <!-- Idea Modal -->
+    <div class="modalOverlay" id="ideaModal">
+      <div class="modal">
+        <div class="modalHeader">
+          <div class="modalTitle">联想结果</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn" id="regenIdea">重新想</button>
+            <button class="btn" id="closeIdea">关闭</button>
+          </div>
+        </div>
+        <div class="modalBody">
+          <div class="hintText" id="ideaSubtitle" style="margin-bottom:10px;"></div>
+          <div class="listGrid" id="ideaList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move Modal -->
+    <div class="modalOverlay" id="moveModal">
+      <div class="modal">
+        <div class="modalHeader">
+          <div class="modalTitle">移动</div>
+          <button class="btn" id="closeMove">关闭</button>
+        </div>
+        <div class="modalBody" id="moveBody"></div>
+        <div class="modalFooter" id="moveFooter"></div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal (blocking) -->
+    <div class="modalOverlay" id="confirmModal">
+      <div class="modal compact compact">
+        <div class="modalHeader">
+          <div class="modalTitle" id="confirmTitle">确认</div>
+          </div>
+        <div class="modalBody" id="confirmBody"></div>
+        <div class="modalFooter">
+          <button class="btn danger" id="confirmYes">是</button>
+          <button class="btn" id="confirmNo">否</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const clamp01 = (v)=>clamp(v,0,1);
+  const deepClone = (obj)=> (window.structuredClone ? structuredClone(obj) : JSON.parse(JSON.stringify(obj)));
+  const snapTo8 = (v)=> Math.round(v/8)*8;
+
+  // Base zoom: 0.20 == 100%
+  const BASE_ZOOM = 0.20;
+  const ZOOM_MIN_PCT = 20;
+  const ZOOM_MAX_PCT = 500;
+  const pctToZoom = (pct)=> BASE_ZOOM * (pct/100);
+  const zoomToPct = (z)=> Math.round((z/BASE_ZOOM)*100);
+
+  let MAP_W = 4400;
+  let MAP_H = 3300;
+  let MAP_ROT = 0; // degrees, 0~360
+  const BAND = 300;
+
+  const COLORS = [
+    "#ff1e1e","#ff3d00","#ff5a00","#ff7a00","#ff9a00","#ffb700","#ffd000","#ffe14a","#fff06a","#fff7a8",
+    "#dfff6a","#b8ff5a","#7dff55","#3cff6a","#00f08a","#00e6a8","#00d7c8","#00c7e8","#00b3ff","#2b8cff",
+    "#1f6bff","#1a4fff","#3a35ff","#5a2be2","#7a2be2","#9b2be2","#bb2be2","#d92bd3","#ff2bb8","#ff2b7a",
+  ];
+
+  let sources = [
+    { uid: 1, id:"A", name:"A 区域锚", x:-450, y:-350, r:1250, fill:"#ff1e1e", stroke:"#ff1e1e", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 2, id:"B", name:"B 区域锚", x: 950, y:-350, r:1250, fill:"#ff7a00", stroke:"#ff7a00", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 3, id:"C", name:"C 区域锚", x:2350, y:-350, r:1250, fill:"#ffd000", stroke:"#ffd000", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 4, id:"D", name:"D 区域锚", x:-450, y:1150, r:1250, fill:"#3cff6a", stroke:"#3cff6a", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 5, id:"E", name:"E 区域锚", x: 950, y:1150, r:1250, fill:"#00c7e8", stroke:"#00c7e8", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 6, id:"F", name:"F 区域锚", x:2350, y:1150, r:1250, fill:"#1f6bff", stroke:"#1f6bff", fillA:0.12, strokeA:0.90, strokeW:2, labelSize:16 },
+    { uid: 7, id:"CORE", name:"CORE 中心锚", x:1300, y:750, r:900, fill:"#7a2be2", stroke:"#7a2be2", fillA:0.14, strokeA:0.95, strokeW:2, labelSize:16 },
+  ];
+  let nextUid = Math.max(...sources.map(s=>s.uid)) + 1;
+
+  let groups = [
+    { gid:"g1", name:"默认组", uids: sources.map(s=>s.uid) }
+  ];
+  let nextGroupId = 2;
+  let selectedGroupGid = groups[0]?.gid || null;
+
+  const selected = new Set();
+  let primaryUid = null;
+  let lastClickedUid = null;
+
+  let zoom = BASE_ZOOM;
+  let offsetX = 0;
+  let offsetY = 0;
+  let overlapEnabled = false;
+  let overlapAreaEnabled = false;
+  let overlapAreaCache = null;
+  let overlapAreaDirty = true;
+    
+
+  let moveUids = [];
+  let moveTargetGid = null;
+
+  const history = [];
+  const HISTORY_MAX = 30;
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const status = document.getElementById("status");
+
+  const leftPanel = document.getElementById("leftPanel");
+  const leftSideToggle = document.getElementById("leftSideToggle");
+  const leftSideIcon = document.getElementById("leftSideIcon");
+const legendInner = document.getElementById("legendInner");
+
+  const addGroupBtn = document.getElementById("addGroupBtn");
+  const addSourceBtn = document.getElementById("addSourceBtn");
+  const delBtn = document.getElementById("delBtn");
+  const clearSelBtn = document.getElementById("clearSelBtn");
+
+  const zoomSlider = document.getElementById("zoom");
+  const zoomPctInput = document.getElementById("zoomPctInput");
+  const centerBtn = document.getElementById("centerBtn");
+  const overlapBtn = document.getElementById("overlapBtn");
+  const overlapAreaBtn = document.getElementById("overlapAreaBtn");
+
+  const toggleMap = document.getElementById("toggleMap");
+  const toggleBand = document.getElementById("toggleBand");
+  const toggleGrid = document.getElementById("toggleGrid");
+  const toggleNames = document.getElementById("toggleNames");
+
+  const mapW = document.getElementById("mapW");
+  const mapH = document.getElementById("mapH");
+  const mapRot = document.getElementById("mapRot");
+  if (mapRot) mapRot.value = Math.round(MAP_ROT);
+  const mapName = document.getElementById("mapName");
+
+  const selCountText = document.getElementById("selCountText");
+  const batchLabelSize = document.getElementById("batchLabelSize");
+
+  const nameInput = document.getElementById("nameInput");
+  const xInput = document.getElementById("xInput");
+  const yInput = document.getElementById("yInput");
+  const rInput = document.getElementById("rInput");
+  const fillPct = document.getElementById("fillPct");
+  const strokePct = document.getElementById("strokePct");
+  const fillPctRange = document.getElementById("fillPctRange");
+  const strokePctRange = document.getElementById("strokePctRange");
+  const strokeW = document.getElementById("strokeW");
+
+  const fillGrid = document.getElementById("fillGrid");
+  const strokeGrid = document.getElementById("strokeGrid");
+
+  const themeBtn = document.getElementById("themeBtn");
+  const themeIcon = document.getElementById("themeIcon");
+
+    const exportBtn = document.getElementById("exportBtn");
+const helpBtn = document.getElementById("helpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const closeHelp = document.getElementById("closeHelp");
+  const overlapReportModal = document.getElementById("overlapReportModal");
+  const closeOverlapReport = document.getElementById("closeOverlapReport");
+
+  const ideaInput = document.getElementById("ideaInput");
+  const ideaBtn = document.getElementById("ideaBtn");
+  const ideaModal = document.getElementById("ideaModal");
+  const closeIdea = document.getElementById("closeIdea");
+  const regenIdea = document.getElementById("regenIdea");
+  const ideaSubtitle = document.getElementById("ideaSubtitle");
+  const ideaList = document.getElementById("ideaList");
+
+  const moveModal = document.getElementById("moveModal");
+  const closeMove = document.getElementById("closeMove");
+  const moveBody = document.getElementById("moveBody");
+  const moveFooter = document.getElementById("moveFooter");
+
+  const confirmModal = document.getElementById("confirmModal");
+  const confirmTitle = document.getElementById("confirmTitle");
+  const confirmBody = document.getElementById("confirmBody");
+  const confirmYes = document.getElementById("confirmYes");
+  const confirmNo = document.getElementById("confirmNo");
+
+  const selectRectEl = document.getElementById("selectRect");
+
+  document.querySelectorAll(".section").forEach(sec=>{
+    const header = sec.querySelector(".sectionHeader");
+    header.addEventListener("click", () => {
+      sec.classList.toggle("collapsed");
+      const chev = sec.querySelector("[data-chev]");
+      if (chev) chev.textContent = sec.classList.contains("collapsed") ? "▸" : "▾";
+    });
+  });
+
+  function openModal(el){ el.style.display = "flex"; }
+  function closeModal(el){ el.style.display = "none"; }
+  function modalOpen(){
+    return [helpModal,ideaModal,moveModal,confirmModal].some(m => m.style.display==="flex");
+  }
+
+  function snapshotState(){
+    return {
+      MAP_W, MAP_H, zoom, offsetX, offsetY, overlapEnabled,
+      sources: deepClone(sources),
+      groups: deepClone(groups),
+      selected: Array.from(selected),
+      primaryUid,
+      lastClickedUid,
+      selectedGroupGid,
+      mapName: mapName.value,
+      dayMode: document.body.classList.contains("day")
+    };
+  }
+  function restoreState(st){
+    MAP_W = st.MAP_W;
+    MAP_H = st.MAP_H;
+    zoom = st.zoom;
+    offsetX = st.offsetX;
+    offsetY = st.offsetY;
+    overlapEnabled = !!st.overlapEnabled;
+    overlapBtn.classList.toggle("toggled", overlapEnabled);
+
+    sources = deepClone(st.sources);
+    groups = deepClone(st.groups);
+    selected.clear(); st.selected.forEach(uid=>selected.add(uid));
+    primaryUid = st.primaryUid;
+    lastClickedUid = st.lastClickedUid;
+    selectedGroupGid = st.selectedGroupGid ?? (groups[0]?.gid || null);
+    mapName.value = st.mapName ?? mapName.value;
+
+    document.body.classList.toggle("day", !!st.dayMode);
+    themeIcon.textContent = document.body.classList.contains("day") ? "☀️" : "🌙";
+
+    mapW.value = MAP_W;
+    mapH.value = MAP_H;
+    updateZoomUI();
+
+    syncPrimaryEditor();
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+  function pushHistory(){
+    history.push(snapshotState());
+    if (history.length > HISTORY_MAX) history.shift();
+  }
+  function undo(){
+    if (history.length === 0) return;
+    const st = history.pop();
+    restoreState(st);
+  }
+
+  function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(canvas.clientWidth * dpr);
+    canvas.height = Math.floor(canvas.clientHeight * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+  window.addEventListener("resize", resizeCanvas);
+
+  function worldToScreen(wx,wy){
+    return { x: wx*zoom + offsetX, y: wy*zoom + offsetY };
+  }
+  function screenToWorld(sx,sy){
+    return { x: (sx - offsetX)/zoom, y: (sy - offsetY)/zoom };
+  }
+
+  function updateZoomUI(){
+    const pct = clamp(zoomToPct(zoom), ZOOM_MIN_PCT, ZOOM_MAX_PCT);
+    zoomPctInput.value = pct;
+    zoomSlider.value = zoom.toFixed(3);
+  }
+
+  function centerOnMap(){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    offsetX = w/2 - (MAP_W/2)*zoom;
+    offsetY = h/2 - (MAP_H/2)*zoom;
+    draw();
+  }
+
+  function getByUid(uid){ return sources.find(s=>s.uid===uid) || null; }
+  function getPrimary(){ return primaryUid ? getByUid(primaryUid) : null; }
+
+  function updateSelUI(){
+    const n = selected.size;
+    selCountText.value = `已选中：${n}`;
+    if (n === 0){ status.textContent = "未选中声源"; return; }
+    const p = getPrimary();
+    status.textContent = `已选中 ${n} 个；主选中：${p ? (p.id+"（"+p.name+"）") : "无"}`;
+  }
+
+  function clearSelection(push=true){
+    if (push) pushHistory();
+    selected.clear();
+    selectedGroupGid = null;
+    primaryUid = null;
+    lastClickedUid = null;
+    syncEditors();
+    renderLegend();
+    fitAllLeftButtons();
+    updateSelUI();
+    draw();
+  }
+
+  function selectSingle(uid, push=true){
+    if (push) pushHistory();
+    if (selectedGroupGid){ selectedGroupGid = null; }
+    selected.clear();
+    selected.add(uid);
+    primaryUid = uid;
+    lastClickedUid = uid;
+    syncPrimaryEditor();
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function toggleSelect(uid, push=true){
+    if (push) pushHistory();
+    if (selectedGroupGid){ selectedGroupGid = null; }
+    if (selected.has(uid)){
+      selected.delete(uid);
+      if (primaryUid === uid){
+        const next = selected.values().next().value;
+        primaryUid = next ?? null;
+      }
+    } else {
+      selected.add(uid);
+      primaryUid = uid;
+    }
+    lastClickedUid = uid;
+    syncPrimaryEditor();
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function getLegendOrderUids(){
+    const used = new Set();
+    const out = [];
+    for (const g of groups){
+      for (const uid of g.uids){
+        if (getByUid(uid) && !used.has(uid)){
+          used.add(uid); out.push(uid);
+        }
+      }
+    }
+    for (const s of sources){
+      if (!used.has(s.uid)) out.push(s.uid);
+    }
+    return out;
+  }
+
+  function shiftSelectRange(toUid){
+    const order = getLegendOrderUids();
+    const a = order.indexOf(lastClickedUid);
+    const b = order.indexOf(toUid);
+    if (a === -1 || b === -1){ selectSingle(toUid); return; }
+    pushHistory();
+    const [start,end] = a < b ? [a,b] : [b,a];
+    selected.clear();
+    for (let i=start;i<=end;i++) selected.add(order[i]);
+    primaryUid = toUid;
+    lastClickedUid = toUid;
+    syncPrimaryEditor();
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function selectGroup(gid, push=false){
+    if (!gid) return;
+    if (push) pushHistory();
+    selectedGroupGid = gid;
+    renderLegend();
+  }
+
+  function moveGroup(gid, dir){
+    const idx = groups.findIndex(g => g.gid === gid);
+    if (idx < 0) return;
+    const nidx = idx + dir;
+    if (nidx < 0 || nidx >= groups.length) return;
+    pushHistory();
+    const [g] = groups.splice(idx, 1);
+    groups.splice(nidx, 0, g);
+    renderLegend();
+  }
+
+  function moveUidWithinGroup(gid, uid, dir){
+    const g = groups.find(x => x.gid === gid);
+    if (!g) return;
+    const idx = g.uids.indexOf(uid);
+    if (idx < 0) return;
+    const nidx = idx + dir;
+    if (nidx < 0 || nidx >= g.uids.length) return;
+    pushHistory();
+    const [u] = g.uids.splice(idx, 1);
+    g.uids.splice(nidx, 0, u);
+    renderLegend();
+  }
+
+  function countInGroup(g){
+    return g.uids.filter(uid=>getByUid(uid)).length;
+  }
+
+  
+  // Back-compat wrapper (older UI code may call openMoveModal({...}))
+  function openMoveModal(payload){
+    try{
+      if (!payload) return;
+      if (payload.type === "item" && payload.uid){
+        openMoveModalFor([payload.uid]);
+      } else if (Array.isArray(payload)){
+        openMoveModalFor(payload);
+      }
+    }catch(err){}
+  }
+
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function openModal(title, bodyHtml, opts){
+    const overlay = document.getElementById("modalOverlay");
+    const titleEl = document.getElementById("modalTitle");
+    const bodyEl = document.getElementById("modalBody");
+    const modalEl = document.getElementById("modal");
+    if (!overlay || !titleEl || !bodyEl || !modalEl) return;
+    titleEl.textContent = title || "";
+    bodyEl.innerHTML = bodyHtml || "";
+    modalEl.classList.toggle("compact", !!(opts && opts.compact));
+    modalEl.classList.toggle("large", !!(opts && opts.large));
+    overlay.classList.add("show");
+  }
+
+  function openOverlapReport(){
+    if (overlapAreaDirty || !overlapAreaCache){
+      overlapAreaCache = computeOverlapAreaAnalysis();
+      overlapAreaDirty = false;
+    }
+    const res = overlapAreaCache;
+    if (!res) { toast("没有可分析的重叠"); return; }
+
+    const modal = document.getElementById("overlapReportModal");
+    const head = document.getElementById("overlapReportHead");
+    const rowsEl = document.getElementById("overlapReportRows");
+    if (!modal || !head || !rowsEl){ toast("弹窗组件缺失"); return; }
+
+    const combos = (res.allCombos || []).slice().sort((a,b)=>b.pct-a.pct);
+    const totalCount = combos.length;
+
+    head.innerHTML = `<div>重叠区域总数：<b>${totalCount}</b></div><div>重叠总面积：<b>${res.overlapPct.toFixed(2)}%</b></div>`;
+
+    rowsEl.innerHTML = combos.map((c,i)=>{
+      const names = (c.names && c.names.length) ? c.names.join("+") : c.key;
+      const id = i+1;
+      return `<tr>
+        <td class="tRank">${i+1}</td>
+        <td class="tSq"><span class="sq">${id}</span></td>
+        <td class="tK">${c.k}</td>
+        <td class="tNames">${escapeHtml(names)}</td>
+        <td class="tPct">${c.pct.toFixed(2)}%</td>
+      </tr>`;
+    }).join("");
+
+    modal.style.display = "flex";
+  }
+
+function openMoveModalFor(uids){
+    if (!uids || uids.length===0) return;
+    moveUids = Array.from(new Set(uids)).filter(uid=>getByUid(uid));
+    if (moveUids.length===0) return;
+    moveTargetGid = null;
+    renderMoveModalPick();
+    openModal(moveModal);
+  }
+
+  function escapeHtml(str){
+    return (str||"").replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  function renderMoveModalPick(){
+    const n = moveUids.length;
+    moveBody.innerHTML = `
+      <div style="font-weight:800; margin-bottom:6px;">请选择要移动到的分组</div>
+      <div class="hintText">将移动 <b>${n}</b> 个声源（移动后声源属性不变，仅分组变化）。</div>
+      <div class="listGrid" id="moveGroupList"></div>
+    `;
+    moveFooter.innerHTML = `<div class="hintText" style="margin-right:auto;">提示：右键声源也可以快速打开此窗口。</div>`;
+    const list = moveBody.querySelector("#moveGroupList");
+    groups.forEach(g=>{
+      const item = document.createElement("div");
+      item.className = "listItem";
+      item.innerHTML = `<div style="font-weight:800;">${escapeHtml(g.name)}</div><div class="small">包含 ${countInGroup(g)} 个</div>`;
+      item.addEventListener("click", ()=>{
+        moveTargetGid = g.gid;
+        renderMoveModalConfirm();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  function renderMoveModalConfirm(){
+    const target = groups.find(g=>g.gid===moveTargetGid);
+    const n = moveUids.length;
+    moveBody.innerHTML = `
+      <div style="font-weight:900; font-size:14px;">确认移动</div>
+      <div class="hintText" style="margin-top:8px;">
+        将 <b>${n}</b> 个声源移动到分组：<b>${escapeHtml(target?.name || "")}</b> ？
+      </div>
+    `;
+    moveFooter.innerHTML = `
+      <button class="btn primary" id="moveConfirmBtn">确认</button>
+      <button class="btn" id="moveBackBtn">返回</button>
+    `;
+    moveFooter.querySelector("#moveConfirmBtn").addEventListener("click", ()=>{
+      doMoveToGroup(moveTargetGid);
+      closeModal(moveModal);
+    });
+    moveFooter.querySelector("#moveBackBtn").addEventListener("click", ()=>{
+      moveTargetGid = null;
+      renderMoveModalPick();
+    });
+  }
+
+  function doMoveToGroup(targetGid){
+    const target = groups.find(g=>g.gid===targetGid);
+    if (!target) return;
+
+    pushHistory();
+    for (const g of groups){
+      g.uids = g.uids.filter(uid => !moveUids.includes(uid));
+    }
+    for (const uid of moveUids) target.uids.push(uid);
+
+    selectedGroupGid = target.gid;
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  closeMove.addEventListener("click", ()=>closeModal(moveModal));
+
+  let confirmYesHandler = null;
+  function openConfirm(title, bodyHtml, onYes){
+    confirmTitle.textContent = title || "确认";
+    confirmBody.innerHTML = bodyHtml || "";
+    confirmYesHandler = onYes || null;
+    openModal(confirmModal);
+  }
+  function closeConfirm(){ closeModal(confirmModal); confirmYesHandler = null; }  confirmNo.addEventListener("click", closeConfirm);
+  
+  function requestDeleteGroup(gid){
+    const g = groups.find(x=>x.gid===gid);
+    if (!g) return;
+    const n = g.uids.length;
+    if (n > 0){
+      openConfirm(
+        "删除分组",
+        `删除分组将同时删除组内声源（${n} 个）。<br/>是否确定？`,
+        ()=> deleteGroup(gid)
+      );
+      return;
+    }
+    // empty group: delete directly
+    deleteGroup(gid);
+  }
+
+  function deleteGroup(gid){
+    const gidx = groups.findIndex(x=>x.gid===gid);
+    if (gidx < 0) return;
+
+    pushHistory();
+
+    // remove sources in that group
+    const uids = new Set(groups[gidx].uids || []);
+    if (uids.size){
+      sources = sources.filter(s => !uids.has(s.uid));
+    }
+
+    // remove group
+    groups.splice(gidx,1);
+
+    // clean uids in any group (safety)
+    groups.forEach(gr => {
+      gr.uids = (gr.uids || []).filter(uid => !uids.has(uid));
+    });
+
+    // selection cleanup
+    if (selectedGroupGid === gid) selectedGroupGid = null;
+    let changed = false;
+    for (const uid of Array.from(selected)){
+      if (uids.has(uid)){
+        selected.delete(uid);
+        changed = true;
+      }
+    }
+    if (primaryUid && uids.has(primaryUid)) primaryUid = null;
+
+    syncEditors();
+    renderLegend();
+    fitAllLeftButtons();
+    updateSelUI();
+    draw();
+  }
+
+confirmYes.addEventListener("click", ()=>{
+    if (confirmYesHandler) confirmYesHandler();
+    closeConfirm();
+  });
+
+  function rgba(hex,a){
+    const h = hex.replace("#","").trim();
+    const r = parseInt(h.slice(0,2),16);
+    const g = parseInt(h.slice(2,4),16);
+    const b = parseInt(h.slice(4,6),16);
+    return `rgba(${r},${g},${b},${clamp01(a)})`;
+  }
+
+  
+  
+  function toast(msg){
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add("show"), 10);
+    setTimeout(()=>{ t.classList.remove("show"); setTimeout(()=>t.remove(), 250); }, 1300);
+  }
+
+
+  function nextExportName(){
+    let n = 1;
+    try{
+      n = parseInt(localStorage.getItem("hbme_export_seq") || "1", 10);
+      if (!Number.isFinite(n) || n < 1) n = 1;
+    }catch(err){ n = 1; }
+    const s = String(n).padStart(3,"0");
+    return { name: `RY_MAP_Draft_${s}.jpg`, seq: n };
+  }
+
+  function bumpExportSeq(cur){
+    try{ localStorage.setItem("hbme_export_seq", String(cur+1)); }catch(err){}
+  }
+
+  function exportMapImage(){
+    try{
+      const { name, seq } = nextExportName();
+      const canvas = document.getElementById("c");
+      if (!canvas) { toast("导出失败：未找到画布"); return; }
+
+      // Ensure latest frame is drawn
+      try{ draw(); }catch(e){}
+
+      canvas.toBlob((blob)=>{
+        if (!blob){ toast("导出失败"); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 800);
+        bumpExportSeq(seq);
+        toast("已导出图片");
+      }, "image/jpeg", 0.92);
+    }catch(err){
+      console.error(err);
+      toast("导出失败");
+    }
+  }
+
+function getProjectState(){
+    return {
+      version: "hbme_v23",
+      savedAt: new Date().toISOString(),
+      map: { name: mapNameInput ? mapNameInput.value : "", w: MAP_W, h: MAP_H, rot: (typeof MAP_ROT!=="undefined"?MAP_ROT:0), band: BAND },
+      view: { zoom, offsetX, offsetY, dayMode: document.body.classList.contains("day") },
+      groups: JSON.parse(JSON.stringify(groups)),
+      sources: JSON.parse(JSON.stringify(sources))
+    };
+  }
+
+  function saveProject(){
+    try{
+      const state = getProjectState();
+      const nameRaw = (state.map.name || "map").trim() || "map";
+      const safeName = nameRaw.replace(/[\\\/:*?"<>|]+/g, "_");
+      const stamp = new Date().toISOString().replace(/[:.]/g,"-");
+      const filename = `${safeName}_${stamp}.json`;
+
+      // persist quick autosave too
+      try{ localStorage.setItem("hbme_autosave", JSON.stringify(state)); }catch(err){}
+
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 500);
+      toast("已保存（Ctrl+S）");
+    }catch(err){
+      toast("保存失败");
+      console.error(err);
+    }
+  }
+
+  function renderLegend(){
+    legendInner.innerHTML = "";
+    const isCollapsed = leftPanel.classList.contains("collapsed");
+
+    groups.forEach((g) => {
+      const groupEl = document.createElement("div");
+      const isGroupSelected = (g.gid === selectedGroupGid);
+      groupEl.className = "group" + (isGroupSelected ? " selected" : "");
+
+      const header = document.createElement("div");
+      header.className = "groupHeader";
+
+      const gIndex = groups.indexOf(g) + 1;
+      const badge = document.createElement("div");
+      badge.className = "groupBadge";
+      badge.textContent = String(gIndex);
+
+      // Collapsed: icon-only group row
+      if (isCollapsed){
+        header.appendChild(badge);
+
+        header.addEventListener("click", (e) => {
+          // toggle select group (still works in collapsed)
+          if (selected.size){ pushHistory(); selected.clear(); primaryUid = null; }
+          if (selectedGroupGid === g.gid){ pushHistory(); selectedGroupGid = null; }
+          else { pushHistory(); selectedGroupGid = g.gid; }
+          lastClickedUid = null;
+          syncEditors();
+          renderLegend();
+          updateSelUI();
+          draw();
+        });
+
+        groupEl.appendChild(header);
+
+        if (!g.listCollapsed){
+          const itemsWrap = document.createElement("div");
+          itemsWrap.className = "groupItems";
+          g.uids.forEach((uid)=>{
+            const s = sources.find(x=>x.uid===uid); if(!s) return;
+            const item = document.createElement("div");
+            item.className = "item" + (selected.has(uid) ? " selected" : "");
+            const chip = document.createElement("div");
+            chip.className = "chip";
+            chip.style.background = rgba(s.fill, s.fillA);
+            chip.style.borderColor = rgba(s.stroke, Math.min(1, s.strokeA));
+            item.appendChild(chip);
+            item.addEventListener("click",(e)=>{
+              e.stopPropagation();
+              if (selectedGroupGid){ pushHistory(); selectedGroupGid = null; }
+              const multi = e.ctrlKey || e.metaKey;
+              if (!multi){
+                pushHistory();
+                selected.clear();
+                selected.add(uid);
+                primaryUid = uid;
+              } else {
+                pushHistory();
+                if (selected.has(uid)) selected.delete(uid);
+                else selected.add(uid);
+                if (!primaryUid) primaryUid = uid;
+              }
+              syncEditors();
+              renderLegend();
+              updateSelUI();
+              draw();
+            });
+            itemsWrap.appendChild(item);
+          });
+          groupEl.appendChild(itemsWrap);
+        }
+
+        legendInner.appendChild(groupEl);
+        return;
+      }
+
+      // Normal mode: left + right columns, fixed row heights
+      const left = document.createElement("div");
+      left.className = "groupHeaderLeft";
+
+      const name = document.createElement("div");
+      name.className = "groupName";
+      name.textContent = g.name || "未命名分组";
+      name.contentEditable = "true";
+      name.spellcheck = false;
+      name.addEventListener("input", () => { g.name = name.textContent.trim(); });
+      name.addEventListener("click", (e)=>{ e.stopPropagation(); });
+
+      const sub = document.createElement("div");
+      sub.className = "groupSub";
+      sub.textContent = `包含：${g.uids.length}`;
+
+      left.appendChild(name);
+      left.appendChild(sub);
+
+      const right = document.createElement("div");
+      right.className = "groupHeaderRight";
+
+      const row = document.createElement("div");
+      row.className = "groupBtnRow";
+
+      // Collapse ALWAYS visible
+      const toggleBtn = document.createElement("button");
+      toggleBtn.className = "miniBtn";
+      const collapsed = !!g.listCollapsed;
+      toggleBtn.textContent = collapsed ? "展开" : "收起";
+      toggleBtn.title = collapsed ? "展开本组声源列表" : "收起本组声源列表";
+      toggleBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        pushHistory();
+        g.listCollapsed = !g.listCollapsed;
+        renderLegend();
+        fitAllLeftButtons();
+      });
+
+      // Delete group: appears to the RIGHT of collapse/expand when group selected.
+      const delGroupBtn = document.createElement("button");
+      delGroupBtn.className = "dangerBtnInline" + (isGroupSelected ? "" : " btnGhost");
+      delGroupBtn.textContent = "删除分组";
+      delGroupBtn.title = "删除此分组（若分组内有声源，将同时删除）";
+      delGroupBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        if (!isGroupSelected) return;
+        requestDeleteGroup(g.gid);
+      });
+
+      row.appendChild(delGroupBtn);
+      row.appendChild(toggleBtn);
+      right.appendChild(row);
+
+      header.appendChild(badge);
+      header.appendChild(left);
+      header.appendChild(right);
+
+      header.addEventListener("click", (e) => {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+        const isBtn = tag === "button";
+        const isEditable = e.target && (e.target.isContentEditable);
+        if (isBtn || isEditable) return;
+
+        if (selected.size){
+          pushHistory();
+          selected.clear();
+          primaryUid = null;
+        }
+
+        if (selectedGroupGid === g.gid){
+          pushHistory();
+          selectedGroupGid = null;
+        } else {
+          pushHistory();
+          selectedGroupGid = g.gid;
+        }
+        lastClickedUid = null;
+        syncEditors();
+        renderLegend();
+        fitAllLeftButtons();
+        updateSelUI();
+        draw();
+      });
+
+      groupEl.appendChild(header);
+
+      if (!g.listCollapsed){
+        const itemsWrap = document.createElement("div");
+        itemsWrap.className = "groupItems";
+
+        g.uids.forEach((uid) => {
+          const s = sources.find(x=>x.uid===uid);
+          if (!s) return;
+
+          const isSel = selected.has(uid);
+
+          const item = document.createElement("div");
+          item.className = "item" + (isSel ? " selected" : "");
+
+          const chip = document.createElement("div");
+          chip.className = "chip";
+          chip.style.background = rgba(s.fill, s.fillA);
+          chip.style.borderColor = rgba(s.stroke, Math.min(1, s.strokeA));
+
+          const box = document.createElement("div");
+          box.className = "itemBox";
+
+          const metaRow = document.createElement("div");
+          metaRow.className = "itemMetaRow";
+
+          const tlSpan = document.createElement("div");
+          tlSpan.className = "itemTL";
+          tlSpan.textContent = `TL=(${s.x}, ${-s.y})`;
+
+          const rSpan = document.createElement("div");
+          rSpan.className = "itemR";
+          rSpan.textContent = `R=${s.r}`;
+
+          metaRow.appendChild(tlSpan);
+          metaRow.appendChild(rSpan);
+          box.appendChild(metaRow);
+
+          const actionRow = document.createElement("div");
+          actionRow.className = "itemActionRow";
+
+          const moveBtn = document.createElement("button");
+          moveBtn.className = "miniBtn" + (isSel ? "" : " btnGhost");
+          moveBtn.textContent = "移动至";
+          moveBtn.title = "移动到其它分组";
+          moveBtn.addEventListener("click", (e)=>{
+            e.stopPropagation();
+            if (!isSel) return;
+            openMoveModalFor([s.uid]);
+          });
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "miniBtn" + (isSel ? "" : " btnGhost");
+          delBtn.textContent = "删除";
+          delBtn.title = "删除选中的声源";
+          delBtn.addEventListener("click", (e)=>{
+            e.stopPropagation();
+            if (!isSel) return;
+            deleteSelected();
+          });
+
+          actionRow.appendChild(moveBtn);
+          actionRow.appendChild(delBtn);
+          box.appendChild(actionRow);
+// Right fixed column (reserve space, no layout jump)
+          const right2 = document.createElement("div");
+          right2.className = "itemRight";
+
+          const colB2 = document.createElement("div");
+          colB2.className = "vBtns";
+
+          const up = document.createElement("button");
+          up.className = "iconBtn" + (isSel ? "" : " btnGhost");
+          up.textContent = "▲";
+          up.title = "上移";
+          up.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (!isSel) return;
+            moveUidWithinGroup(g.gid, s.uid, -1);
+          });
+
+          const down = document.createElement("button");
+          down.className = "iconBtn" + (isSel ? "" : " btnGhost");
+          down.textContent = "▼";
+          down.title = "下移";
+          down.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (!isSel) return;
+            moveUidWithinGroup(g.gid, s.uid, +1);
+          });
+
+          colB2.appendChild(up);
+          colB2.appendChild(down);
+
+                    right2.appendChild(colB2);
+
+          item.appendChild(chip);
+          item.appendChild(box);
+          item.appendChild(right2);
+
+          item.addEventListener("click", (e) => {
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+            if (tag === "button") return;
+
+            if (selectedGroupGid){
+              pushHistory();
+              selectedGroupGid = null;
+            }
+
+            const multi = e.ctrlKey || e.metaKey;
+            const range = e.shiftKey;
+
+            if (!multi && !range){
+              if (selected.size===1 && selected.has(uid)){
+                pushHistory();
+                selected.clear();
+                primaryUid = null;
+              } else {
+                pushHistory();
+                selected.clear();
+                selected.add(uid);
+                primaryUid = uid;
+              }
+            } else if (multi){
+              pushHistory();
+              if (selected.has(uid)) selected.delete(uid);
+              else selected.add(uid);
+              if (!primaryUid) primaryUid = uid;
+            } else if (range){
+              const order = g.uids.slice();
+              const last = lastClickedUid && order.includes(lastClickedUid) ? lastClickedUid : uid;
+              const a = order.indexOf(last);
+              const b = order.indexOf(uid);
+              if (a>=0 && b>=0){
+                pushHistory();
+                const [sidx,eidx] = a<b ? [a,b] : [b,a];
+                for (let i=sidx;i<=eidx;i++) selected.add(order[i]);
+                if (!primaryUid) primaryUid = uid;
+              }
+            }
+
+            lastClickedUid = uid;
+            syncPrimaryEditor();
+            renderLegend();
+            fitAllLeftButtons();
+            updateSelUI();
+            draw();
+          });
+
+          item.addEventListener("contextmenu", (e)=>{
+            e.preventDefault();
+            if (selectedGroupGid){
+              pushHistory();
+              selectedGroupGid = null;
+            }
+            if (!selected.has(uid)){
+              pushHistory();
+              selected.clear();
+              selected.add(uid);
+              primaryUid = uid;
+              lastClickedUid = uid;
+              syncPrimaryEditor();
+              renderLegend();
+              fitAllLeftButtons();
+              updateSelUI();
+              draw();
+            }
+            openContextMoveMenu(e.clientX, e.clientY, uid);
+          });
+
+          itemsWrap.appendChild(item);
+        });
+
+        groupEl.appendChild(itemsWrap);
+      }
+
+      legendInner.appendChild(groupEl);
+    });
+
+    fitAllLeftButtons();
+  }
+
+
+  function renderSourceItem(s, gid){
+    const item = document.createElement("div");
+    const isSel = selected.has(s.uid);
+    item.className = "item" + (isSel ? " selected" : "");
+
+    item.addEventListener("click", (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const shift = e.shiftKey;
+
+      if (shift && lastClickedUid){
+        shiftSelectRange(s.uid);
+        return;
+      }
+      if (ctrl){
+        toggleSelect(s.uid);
+        return;
+      }
+
+      if (selected.size === 1 && selected.has(s.uid)){
+        clearSelection();
+        return;
+      }
+      selectSingle(s.uid);
+    });
+
+    item.addEventListener("contextmenu", (e)=>{
+      e.preventDefault();
+      if (!selected.has(s.uid)) selectSingle(s.uid);
+      openMoveModalFor(Array.from(selected));
+    });
+
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.style.background = rgba(s.fill, s.fillA);
+    chip.style.borderColor = rgba(s.stroke, Math.min(1, s.strokeA));
+
+    const box = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "itemTitle";
+    title.textContent = s.name || s.id;
+    const meta = document.createElement("div");
+    meta.className = "itemMeta";
+    meta.innerHTML = `TL=(${s.x}, ${-s.y}) · R=${s.r}`;    box.appendChild(meta);
+
+    const right = document.createElement("div");
+    right.style.display = "flex";
+    right.style.alignItems = "center";
+    right.style.justifyContent = "flex-end";
+
+    if (isSel){
+      const ctrl = document.createElement("div");
+      ctrl.className = "ctrlRow";
+
+      const v = document.createElement("div");
+      v.className = "vBtns";
+
+      const up = document.createElement("button");
+      up.className = "miniBtn";
+      up.textContent = "▲";
+      up.title = "上移";
+      up.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (gid) moveUidWithinGroup(gid, s.uid, -1);
+      });
+
+      const down = document.createElement("button");
+      down.className = "miniBtn";
+      down.textContent = "▼";
+      down.title = "下移";
+      down.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (gid) moveUidWithinGroup(gid, s.uid, +1);
+      });
+
+      const moveBtn = document.createElement("button");
+      moveBtn.className = "miniBtn moveBtn";
+      moveBtn.textContent = "移动";
+      moveBtn.title = "移动到其它分组";
+      moveBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        openMoveModalFor(Array.from(selected));
+      });
+
+      if (!gid){
+        up.disabled = true; down.disabled = true;
+        up.style.opacity = "0.35"; down.style.opacity = "0.35";
+      }
+
+      v.appendChild(up);
+      v.appendChild(down);
+
+      ctrl.appendChild(v);
+      ctrl.appendChild(moveBtn);
+      right.appendChild(ctrl);
+    }
+
+    item.appendChild(chip);
+    item.appendChild(box);
+    item.appendChild(right);
+    return item;
+  }
+
+  function deleteGroupFlow(gid){
+    const idx = groups.findIndex(g=>g.gid===gid);
+    if (idx < 0) return;
+    const g = groups[idx];
+    const liveUids = g.uids.filter(uid=>getByUid(uid));
+    const count = liveUids.length;
+
+    const doDelete = ()=>{
+      pushHistory();
+      const kill = new Set(liveUids);
+      sources = sources.filter(s => !kill.has(s.uid));
+      for (const gg of groups){
+        gg.uids = gg.uids.filter(uid => !kill.has(uid));
+      }
+      groups.splice(idx,1);
+      for (const uid of Array.from(selected)){
+        if (kill.has(uid)) selected.delete(uid);
+      }
+      if (primaryUid && kill.has(primaryUid)) primaryUid = selected.values().next().value ?? null;
+      if (selectedGroupGid === gid){
+        selectedGroupGid = groups[idx]?.gid || groups[idx-1]?.gid || groups[0]?.gid || null;
+      }
+      syncPrimaryEditor();
+      renderLegend();
+      updateSelUI();
+      draw();
+    };
+
+    if (count > 0){
+      openConfirm(
+        "删除分组",
+        `分组 <b>${escapeHtml(g.name)}</b> 内包含 <b>${count}</b> 个声源。<br/><br/>
+         删除分组将会 <b>同时删除组内声源</b>。是否确定？`,
+        doDelete
+      );
+    } else {
+      pushHistory();
+      groups.splice(idx,1);
+      if (selectedGroupGid === gid){
+        selectedGroupGid = groups[idx]?.gid || groups[idx-1]?.gid || groups[0]?.gid || null;
+      }
+      renderLegend();
+    }
+  }
+
+  
+  // v11: restore syncEditors() wrapper used across UI
+  // Keeps existing call sites stable.
+  function syncEditors(){
+    // When a group is selected, there may be no primaryUid.
+    // Right panel should reflect current primary selection (if any) and selection count.
+    try{ syncPrimaryEditor(); }catch(e){}
+    try{ updateSelUI(); }catch(e){}
+  }
+
+function syncPrimaryEditor(){
+    const p = getPrimary();
+    if (!p){
+      nameInput.value = "";
+      xInput.value = "";
+      yInput.value = "";
+      rInput.value = "";
+      fillPct.value = "0";
+      strokePct.value = "0";
+      fillPctRange.value = "0";
+      strokePctRange.value = "0";
+      strokeW.value = "2";
+      highlightActiveColors();
+      return;
+    }
+    nameInput.value = p.name ?? "";
+    xInput.value = p.x;
+    yInput.value = (-p.y);
+    rInput.value = p.r;
+
+    const fp = Math.round(clamp01(p.fillA)*100);
+    const sp = Math.round(clamp01(p.strokeA)*100);
+    fillPct.value = fp;
+    strokePct.value = sp;
+    fillPctRange.value = fp;
+    strokePctRange.value = sp;
+
+    strokeW.value = String(p.strokeW ?? 2);
+    batchLabelSize.value = String(p.labelSize ?? 16);
+    highlightActiveColors();
+  }
+
+  function applyPrimaryNameAndGeo(){
+    const p = getPrimary();
+    if (!p) return;
+    pushHistory();
+    p.name = (nameInput.value || "").trim() || p.id;
+
+    const nx = parseInt(xInput.value,10);
+    const ny = parseInt(yInput.value,10);
+    const nr = parseInt(rInput.value,10);
+    if (!Number.isNaN(nx)) p.x = nx;
+    if (!Number.isNaN(ny)) p.y = -ny;
+    if (!Number.isNaN(nr) && nr > 0) p.r = nr;
+
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function applyBatchLabel(){
+    if (selected.size === 0) return;
+    const raw = parseInt(batchLabelSize.value,10);
+    if (!Number.isFinite(raw)) return;
+    pushHistory();
+    let size = clamp(snapTo8(raw), 8, 64);
+    batchLabelSize.value = size;
+    for (const uid of selected){
+      const s = getByUid(uid);
+      if (s) s.labelSize = size;
+    }
+    renderLegend();
+    fitAllLeftButtons();
+    draw();
+  }
+
+  function applyBatchOpacity(kind, pct){
+    if (selected.size === 0) return;
+    pushHistory();
+    const a = clamp01((parseFloat(pct)||0)/100);
+    for (const uid of selected){
+      const s = getByUid(uid);
+      if (!s) continue;
+      if (kind === "fill") s.fillA = a;
+      if (kind === "stroke") s.strokeA = a;
+    }
+    syncPrimaryEditor();
+    renderLegend();
+    fitAllLeftButtons();
+    draw();
+  }
+
+  function bindOpacityInputs(numEl, rangeEl, kind){
+    numEl.addEventListener("input", ()=>{
+      const v = clamp(parseInt(numEl.value,10) || 0, 0, 100);
+      numEl.value = v;
+      rangeEl.value = v;
+      applyBatchOpacity(kind, v);
+    });
+    rangeEl.addEventListener("input", ()=>{
+      const v = clamp(parseInt(rangeEl.value,10) || 0, 0, 100);
+      rangeEl.value = v;
+      numEl.value = v;
+      applyBatchOpacity(kind, v);
+    });
+  }
+
+  function buildColorGrid(container, onPick){
+    container.innerHTML = "";
+    COLORS.forEach(hex=>{
+      const d = document.createElement("div");
+      d.className = "swatch";
+      d.style.background = hex;
+      d.title = hex;
+      d.addEventListener("click", () => onPick(hex));
+      container.appendChild(d);
+    });
+  }
+  function highlightActiveColors(){
+    const p = getPrimary();
+    const fill = p?.fill;
+    const stroke = p?.stroke;
+    [...fillGrid.children].forEach(el=>el.classList.toggle("active", el.title===fill));
+    [...strokeGrid.children].forEach(el=>el.classList.toggle("active", el.title===stroke));
+  }
+
+  function centerOf(s){ return { cx: s.x + s.r, cy: s.y + s.r }; }
+
+  function drawGrid(){
+    const step = 500;
+    ctx.save();
+    ctx.strokeStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.08)" : "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+
+    const topLeft = screenToWorld(0,0);
+    const bottomRight = screenToWorld(canvas.clientWidth, canvas.clientHeight);
+    const startX = Math.floor(topLeft.x/step)*step;
+    const endX = Math.ceil(bottomRight.x/step)*step;
+    const startY = Math.floor(topLeft.y/step)*step;
+    const endY = Math.ceil(bottomRight.y/step)*step;
+
+    for (let x=startX;x<=endX;x+=step){
+      const p1 = worldToScreen(x,startY);
+      const p2 = worldToScreen(x,endY);
+      ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    }
+    for (let y=startY;y<=endY;y+=step){
+      const p1 = worldToScreen(startX,y);
+      const p2 = worldToScreen(endX,y);
+      ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawPoly(pts){
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+  }
+
+  function rotatePt(px,py,cx,cy,deg){
+    const a = (deg%360) * Math.PI/180;
+    const cos = Math.cos(a), sin = Math.sin(a);
+    const dx = px - cx, dy = py - cy;
+    return { x: dx*cos - dy*sin + cx, y: dx*sin + dy*cos + cy };
+  }
+
+  function drawPolyWorld(ptsWorld){
+    const pts = ptsWorld.map(p=>worldToScreen(p.x,p.y));
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+  }
+
+  function drawMapRect(){
+    const cx = MAP_W/2, cy = MAP_H/2;
+
+    const outer = [
+      rotatePt(0,0,cx,cy,MAP_ROT),
+      rotatePt(MAP_W,0,cx,cy,MAP_ROT),
+      rotatePt(MAP_W,MAP_H,cx,cy,MAP_ROT),
+      rotatePt(0,MAP_H,cx,cy,MAP_ROT),
+    ];
+
+    ctx.save();
+    ctx.strokeStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.70)" : "rgba(255,255,255,0.70)";
+    ctx.lineWidth = 2;
+    drawPolyWorld(outer);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBand(){
+    const inset = BAND;
+    const cx = MAP_W/2, cy = MAP_H/2;
+
+    const inner = [
+      rotatePt(inset,inset,cx,cy,MAP_ROT),
+      rotatePt(MAP_W-inset,inset,cx,cy,MAP_ROT),
+      rotatePt(MAP_W-inset,MAP_H-inset,cx,cy,MAP_ROT),
+      rotatePt(inset,MAP_H-inset,cx,cy,MAP_ROT),
+    ];
+
+    ctx.save();
+    ctx.setLineDash([6,6]);
+    ctx.strokeStyle = "rgba(255,180,80,0.8)";
+    ctx.lineWidth = 2;
+    drawPolyWorld(inner);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "rgba(255,180,80,0.05)";
+    drawPolyWorld(inner);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function drawSource(s){
+    const isSel = selected.has(s.uid);
+    const {cx,cy} = centerOf(s);
+    const c = worldToScreen(cx,cy);
+    const rr = s.r * zoom;
+
+    ctx.save();
+
+    ctx.fillStyle = rgba(s.fill, s.fillA);
+    ctx.strokeStyle = rgba(s.stroke, s.strokeA);
+    ctx.lineWidth = (s.strokeW||2) + (isSel ? 2 : 0);
+
+    ctx.beginPath();
+    ctx.arc(c.x,c.y, rr, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    const tl = worldToScreen(s.x,s.y);
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.20)" : "rgba(255,255,255,0.20)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tl.x, tl.y, (2*s.r)*zoom, (2*s.r)*zoom);
+    ctx.setLineDash([]);
+
+    if (toggleNames.checked){
+      ctx.font = `${s.labelSize || 16}px sans-serif`;
+      ctx.fillStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.88)" : "rgba(255,255,255,0.90)";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.fillText(s.name || s.id, c.x + 10, c.y);
+    }
+
+    if (isSel){
+      ctx.setLineDash([8,6]);
+      ctx.strokeStyle = "rgba(96,165,250,0.80)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x,c.y, rr + 6, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
+  }
+
+  
+  // === v27: Overlap area analysis (sampling-based) ===
+  function computeOverlapAreaAnalysis(){
+    const n = sources.length;
+    if (n < 2) return null;
+
+    // Sampling resolution: adaptive (cap computations)
+    let cols = 240, rows = 180;
+    if (n > 80){ cols = 210; rows = 160; }
+    if (n > 120){ cols = 180; rows = 140; }
+
+    const mapArea = MAP_W * MAP_H;
+    const stepX = MAP_W / cols;
+    const stepY = MAP_H / rows;
+    const cellArea = stepX * stepY;
+
+    // Precompute circles
+    const circles = sources.map(s=>{
+      const c = centerOf(s);
+      return { uid:s.uid, name:(s.name||s.uid), cx:c.cx, cy:c.cy, r:s.r, r2:s.r*s.r };
+    });
+
+    const layerCounts = {}; // k -> area
+    let overlapTotalArea = 0;
+
+    // Combo map (limited): key -> {k, area, sumx,sumy, names[]}
+    const combos = new Map();
+
+    for (let iy=0; iy<rows; iy++){
+      const y = (iy + 0.5) * stepY;
+      for (let ix=0; ix<cols; ix++){
+        const x = (ix + 0.5) * stepX;
+
+        // gather membership
+        let k = 0;
+        const members = [];
+        for (let i=0;i<circles.length;i++){
+          const c = circles[i];
+          const dx = x - c.cx, dy = y - c.cy;
+          if (dx*dx + dy*dy <= c.r2){
+            k++;
+            if (k <= 8) members.push(c); // cap membership list to avoid huge keys
+          }
+        }
+        if (k >= 2){
+          const a = cellArea;
+          overlapTotalArea += a;
+          layerCounts[k] = (layerCounts[k]||0) + a;
+
+          // build combo key from first up to 6 members (stable, limited)
+          // if k is huge, we still record a "k层重叠(>6)" bucket using first 6.
+          const pick = members.slice(0, Math.min(6, members.length));
+          const key = pick.map(m=>m.uid).sort().join("+") + (k>pick.length ? `+...(${k})` : "");
+          if (!combos.has(key)){
+            combos.set(key, { key, k, area:0, sumx:0, sumy:0, names: pick.map(m=>m.name) });
+          }
+          const obj = combos.get(key);
+          obj.area += a;
+          obj.sumx += x * a;
+          obj.sumy += y * a;
+          obj.k = k; // store actual k of this cell (last wins; ok as approx)
+        }
+      }
+    }
+
+    // Convert to sorted arrays
+    const layerArr = Object.keys(layerCounts).map(k=>({k:parseInt(k,10), area:layerCounts[k]})).sort((a,b)=>a.k-b.k);
+    const comboArr = Array.from(combos.values()).sort((a,b)=>b.area-a.area);
+
+    // Compute all combos (sorted by area desc)
+    const allCombos = comboArr.map(c=>{
+      const cx = c.sumx / (c.area||1);
+      const cy = c.sumy / (c.area||1);
+      return {
+        key: c.key,
+        k: c.k,
+        area: c.area,
+        pct: (c.area/mapArea)*100,
+        cx, cy,
+        names: c.names
+      };
+    });
+
+    return {
+      mapArea,
+      overlapTotalArea,
+      overlapPct: (overlapTotalArea/mapArea)*100,
+      layers: layerArr.map(l=>({k:l.k, area:l.area, pct:(l.area/mapArea)*100})),
+      allCombos
+    };
+  }
+
+  function drawOverlapAreaOverlay(){
+    if (!overlapAreaEnabled) return;
+
+    if (overlapAreaDirty || !overlapAreaCache){
+      overlapAreaCache = computeOverlapAreaAnalysis();
+      overlapAreaDirty = false;
+    }
+    const res = overlapAreaCache;
+    if (!res) return;
+
+    // Summary ribbon
+    ctx.save();
+    const pad = 10;
+    const txt = `重叠面积：${res.overlapPct.toFixed(2)}%   ` + res.layers
+      .filter(l=>l.k>=2)
+      .slice(0,6)
+      .map(l=>`${l.k}层:${l.pct.toFixed(2)}%`).join("  ");
+    ctx.font = "13px system-ui";
+    ctx.textBaseline = "top";
+    const ribbonW = Math.min(ctx.measureText(txt).width + pad*2, canvas.width - 40);
+    const ribbonX = (canvas.width - ribbonW)/2;
+    const ribbonY = 12;
+    ctx.fillStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.08)" : "rgba(0,0,0,0.35)";
+    ctx.strokeStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.12)";
+    roundRect(ctx, ribbonX, ribbonY, ribbonW, 30, 14);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = document.body.classList.contains("day") ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)";
+    ctx.fillText(txt, ribbonX+pad, ribbonY+7);
+    ctx.restore();
+
+    function rayExitPoint(px,py,dx,dy){
+      let tMin = Infinity, edge = "right";
+      const eps = 1e-9;
+      if (Math.abs(dx) > eps){
+        const tL = (0 - px)/dx; const yL = py + tL*dy;
+        if (tL > 0 && yL >= 0 && yL <= MAP_H && tL < tMin){ tMin = tL; edge="left"; }
+        const tR = (MAP_W - px)/dx; const yR = py + tR*dy;
+        if (tR > 0 && yR >= 0 && yR <= MAP_H && tR < tMin){ tMin = tR; edge="right"; }
+      }
+      if (Math.abs(dy) > eps){
+        const tT = (0 - py)/dy; const xT = px + tT*dx;
+        if (tT > 0 && xT >= 0 && xT <= MAP_W && tT < tMin){ tMin = tT; edge="top"; }
+        const tB = (MAP_H - py)/dy; const xB = px + tB*dx;
+        if (tB > 0 && xB >= 0 && xB <= MAP_W && tB < tMin){ tMin = tB; edge="bottom"; }
+      }
+      if (!Number.isFinite(tMin)) return { x:px, y:py, edge:"right" };
+      return { x: px + dx*tMin, y: py + dy*tMin, edge };
+    }
+
+    const mcx = MAP_W/2, mcy = MAP_H/2;
+    const combos = (res.allCombos || []).filter(c=>c.pct > 0);
+
+    // tiers (distance equal -> same tier)
+    const BIN = 5;
+    const rankedByDist = combos.map(c=>{
+      const d = Math.hypot(c.cx - mcx, c.cy - mcy);
+      const key = Math.round(d / BIN) * BIN;
+      return { ...c, d, distKey:key };
+    }).sort((a,b)=>a.d - b.d);
+
+    const tierMap = new Map(); let tier = 0;
+    for (const c of rankedByDist){
+      if (!tierMap.has(c.distKey)){ tierMap.set(c.distKey, tier); tier++; }
+    }
+
+    // ids by pct (for square)
+    const byPct = combos.slice().sort((a,b)=>b.pct-a.pct);
+    function comboStableKey(c){
+      const names = (c.names && c.names.length) ? c.names.join("+") : c.key;
+      return `${names}__${c.k}`;
+    }
+    const idMap = new Map();
+    byPct.forEach((c,i)=> idMap.set(comboStableKey(c), i+1));
+
+    // Scatter placement per edge with collision avoidance
+    const minGap = 24;           // label row gap
+    const colStep = 140;         // additional outward per overflow column
+    const sideData = {left:[], right:[], top:[], bottom:[]};
+
+    // First pass compute desired anchors
+    const items = rankedByDist.map(c=>{
+      let dx = c.cx - mcx, dy = c.cy - mcy;
+      const len = Math.hypot(dx,dy);
+      if (len < 1e-6){ dx = 1; dy = 0; } else { dx/=len; dy/=len; }
+
+      const exit = rayExitPoint(c.cx, c.cy, dx, dy);
+
+      const p0 = worldToScreen(c.cx, c.cy);
+      const pExit = worldToScreen(exit.x, exit.y);
+
+      let ex = pExit.x - p0.x, ey = pExit.y - p0.y;
+      const el = Math.hypot(ex,ey) || 1;
+      ex/=el; ey/=el;
+
+      const tierIdx = tierMap.get(c.distKey) || 0;
+      const ext = 20 + tierIdx*25; // +25px per tier
+      const pOut = { x: pExit.x + ex*ext, y: pExit.y + ey*ext };
+
+      const edge = exit.edge;
+      const desired = (edge==="left" || edge==="right") ? pOut.y : pOut.x;
+
+      return { c, p0, pExit, pOut, ex, ey, edge, desired };
+    });
+
+    // Bucket by edge and sort by desired
+    items.forEach(it=> sideData[it.edge].push(it));
+    for (const k of Object.keys(sideData)){
+      sideData[k].sort((a,b)=>a.desired - b.desired);
+    }
+
+    // Assign slots along each edge (scattered around all sides)
+    function assignSlots(list, isVertical){
+      const assigned = [];
+      let col = 0;
+      let last = -1e9;
+      const minCoord = 30;
+      const maxCoord = isVertical ? (canvas.height - 30) : (canvas.width - 30);
+
+      list.forEach(it=>{
+        let coord = Math.max(minCoord, Math.min(maxCoord, it.desired));
+        if (coord < last + minGap){
+          coord = last + minGap;
+          if (coord > maxCoord){
+            col += 1;
+            coord = minCoord;
+          }
+        }
+        last = coord;
+        assigned.push({ ...it, slot:coord, col });
+      });
+      return assigned;
+    }
+
+    const assigned = []
+      .concat(assignSlots(sideData.left, true))
+      .concat(assignSlots(sideData.right, true))
+      .concat(assignSlots(sideData.top, false))
+      .concat(assignSlots(sideData.bottom, false));
+
+    // Draw
+    const isDay = document.body.classList.contains("day");
+    const sqFill = isDay ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.10)";
+    const sqStroke = isDay ? "rgba(15,23,42,0.25)" : "rgba(255,255,255,0.22)";
+    const txCol = isDay ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.92)";
+
+    ctx.save();
+    ctx.strokeStyle = isDay ? "rgba(15,23,42,0.38)" : "rgba(255,255,255,0.26)";
+    ctx.lineWidth = 1.5;
+
+    assigned.forEach(it=>{
+      const {c, p0, pExit, pOut, edge, slot, col} = it;
+
+      // Decide horizontal direction for label
+      const sign = (it.ex >= 0) ? 1 : -1;
+
+      let pBend, pLabel;
+      if (edge==="left"){
+        const x = pOut.x - 100 - col*colStep;
+        pBend = { x: pOut.x, y: slot };
+        pLabel = { x, y: slot };
+      }else if (edge==="right"){
+        const x = pOut.x + 100 + col*colStep;
+        pBend = { x: pOut.x, y: slot };
+        pLabel = { x, y: slot };
+      }else if (edge==="top"){
+        const y = pOut.y - 0 - col*colStep;
+        pBend = { x: slot, y: y };
+        pLabel = { x: slot + sign*100, y: y };
+      }else{ // bottom
+        const y = pOut.y + 0 + col*colStep;
+        pBend = { x: slot, y: y };
+        pLabel = { x: slot + sign*100, y: y };
+      }
+
+      // Routed polyline (scattered by edge)
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(pExit.x, pExit.y);
+      ctx.lineTo(pOut.x, pOut.y);
+      ctx.lineTo(pBend.x, pBend.y);
+      ctx.lineTo(pLabel.x, pLabel.y);
+      ctx.stroke();
+
+      // marker at overlap center
+      ctx.fillStyle = isDay ? "rgba(239,68,68,0.90)" : "rgba(239,68,68,0.92)";
+      ctx.beginPath();
+      ctx.arc(p0.x, p0.y, 4, 0, Math.PI*2);
+      ctx.fill();
+
+      // Label: square + text
+      const names = (c.names && c.names.length) ? c.names.join("+") : c.key;
+      const id = idMap.get(comboStableKey(c)) || 0;
+      const text = `${names}  (${c.k}层)  ${c.pct.toFixed(2)}%`;
+
+      const boxSize = 16, gap = 6;
+
+      ctx.save();
+      ctx.font = "12px system-ui";
+      ctx.textBaseline = "middle";
+
+      if (pLabel.x >= pBend.x){ // label to right
+        ctx.fillStyle = sqFill; ctx.strokeStyle = sqStroke; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.rect(pLabel.x, pLabel.y - boxSize/2, boxSize, boxSize); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = txCol; ctx.textAlign="center";
+        ctx.fillText(String(id), pLabel.x + boxSize/2, pLabel.y);
+
+        ctx.textAlign="left";
+        ctx.fillText(text, pLabel.x + boxSize + gap, pLabel.y);
+      }else{ // label to left
+        ctx.fillStyle = sqFill; ctx.strokeStyle = sqStroke; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.rect(pLabel.x - boxSize, pLabel.y - boxSize/2, boxSize, boxSize); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = txCol; ctx.textAlign="center";
+        ctx.fillText(String(id), pLabel.x - boxSize/2, pLabel.y);
+
+        ctx.textAlign="right";
+        ctx.fillText(text, pLabel.x - boxSize - gap, pLabel.y);
+      }
+
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+
+function drawOverlaps(){
+    // 每个“重叠区域”只显示一个数字（不是全图只显示一个数字）。
+    // 采用屏幕网格采样：统计覆盖数>=2 的区域，并按“覆盖数相同”做连通区域分组，每个区域显示一次数字。
+    const n = sources.length;
+    if (n < 2) return;
+
+    const stepPx = 18;
+    const cols = Math.max(1, Math.floor(canvas.width / stepPx));
+    const rows = Math.max(1, Math.floor(canvas.height / stepPx));
+
+    const circles = sources.map(s=>{
+      const c = centerOf(s);
+      return { cx:c.cx, cy:c.cy, r:s.r };
+    });
+
+    const counts = new Int16Array(cols*rows);
+    for (let gy=0; gy<rows; gy++){
+      for (let gx=0; gx<cols; gx++){
+        const sx = gx*stepPx + stepPx*0.5;
+        const sy = gy*stepPx + stepPx*0.5;
+        const w = screenToWorld(sx, sy);
+        let cnt = 0;
+        for (let i=0;i<circles.length;i++){
+          const dx = w.x - circles[i].cx;
+          const dy = w.y - circles[i].cy;
+          if (dx*dx + dy*dy <= circles[i].r * circles[i].r) cnt++;
+        }
+        counts[gy*cols + gx] = cnt;
+      }
+    }
+
+    const seen = new Uint8Array(cols*rows);
+    const regions = [];
+
+    function idx(x,y){ return y*cols + x; }
+
+    for (let y=0;y<rows;y++){
+      for (let x=0;x<cols;x++){
+        const id = idx(x,y);
+        if (seen[id]) continue;
+        const cnt = counts[id];
+        if (cnt < 2){ seen[id]=1; continue; }
+
+        const q = [id];
+        seen[id]=1;
+        let sxSum=0, sySum=0, k=0;
+
+        while (q.length){
+          const cur = q.pop();
+          const cy = Math.floor(cur/cols);
+          const cx = cur - cy*cols;
+
+          const cxS = cx*stepPx + stepPx*0.5;
+          const cyS = cy*stepPx + stepPx*0.5;
+          sxSum += cxS; sySum += cyS; k++;
+
+          const neigh = [[cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]];
+          for (const [nx,ny] of neigh){
+            if (nx<0||ny<0||nx>=cols||ny>=rows) continue;
+            const nid = idx(nx,ny);
+            if (seen[nid]) continue;
+            if (counts[nid] === cnt){
+              seen[nid]=1;
+              q.push(nid);
+            }
+          }
+        }
+
+        regions.push({ cnt, sx: sxSum/k, sy: sySum/k, k });
+      }
+    }
+
+    if (!regions.length) return;
+
+    ctx.save();
+    ctx.textBaseline="middle";
+    ctx.textAlign="center";
+    ctx.font="12px sans-serif";
+
+    const bg = document.body.classList.contains("day") ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.78)";
+    const fg = document.body.classList.contains("day") ? "rgba(255,255,255,0.92)" : "rgba(15,23,42,0.92)";
+
+    for (const r of regions){
+      if (r.k < 2) continue; // too tiny, avoid noise
+      const txt = String(r.cnt);
+      const wtxt = ctx.measureText(txt).width;
+      const bw = Math.max(18, wtxt + 10);
+      const bh = 18;
+      roundRect(ctx, r.sx - bw/2, r.sy - bh/2, bw, bh, 8);
+      ctx.fillStyle = bg; ctx.fill();
+      ctx.fillStyle = fg; ctx.fillText(txt, r.sx, r.sy);
+    }
+
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
+    if (toggleGrid.checked) drawGrid();
+    if (toggleMap.checked) drawMapRect();
+    if (toggleBand.checked) drawBand();
+    for (const s of sources) drawSource(s);
+    if (overlapEnabled) drawOverlaps();
+    drawOverlapAreaOverlay();
+  }
+
+  function hitTest(wx,wy){
+    for (let i=sources.length-1;i>=0;i--){
+      const s = sources[i];
+      const {cx,cy} = centerOf(s);
+      const dx = wx - cx, dy = wy - cy;
+      if (dx*dx + dy*dy <= s.r*s.r) return s;
+    }
+    return null;
+  }
+
+  let mode = null;
+  let panStart = { sx:0, sy:0, ox:0, oy:0 };
+  let moveStart = { uid:null, x:0, y:0, wx:0, wy:0 };
+  let boxStart = { sx:0, sy:0, wx:0, wy:0 };
+
+  canvas.addEventListener("mousedown", (e) => {
+    if (modalOpen()) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const w = screenToWorld(sx,sy);
+
+    if (e.ctrlKey || e.metaKey){
+      if (selectedGroupGid){ pushHistory(); selectedGroupGid = null; }
+      mode = "box";
+      boxStart = { sx, sy, wx:w.x, wy:w.y };
+      selectRectEl.style.display = "block";
+      selectRectEl.style.left = `${sx}px`;
+      selectRectEl.style.top = `${sy}px`;
+      selectRectEl.style.width = `0px`;
+      selectRectEl.style.height = `0px`;
+      return;
+    }
+
+    const hit = hitTest(w.x,w.y);
+    if (hit){
+      // v14: move supports dragging all selected when multi-selected
+      if (selectedGroupGid){ pushHistory(); selectedGroupGid = null; }
+
+      // If hit is within current multi-selection, drag all selected together
+      if (selected.has(hit.uid) && selected.size > 1 && !(e.shiftKey) && !(e.ctrlKey || e.metaKey)){
+        pushHistory();
+        primaryUid = hit.uid; // grabbed one becomes primary
+        mode = "move";
+        const starts = {};
+        for (const uid of selected){
+          const s = sources.find(x=>x.uid===uid);
+          if (s) starts[uid] = { x:s.x, y:s.y };
+        }
+        moveStart = { uids: Array.from(selected), starts, wx: w.x, wy: w.y, primary: primaryUid };
+        return;
+      }
+
+      // Otherwise: select single then move (selection+move in one history step)
+      pushHistory();
+      selectSingle(hit.uid, false);
+      mode = "move";
+      const p = getPrimary();
+      const starts = {};
+      if (p) starts[p.uid] = { x:p.x, y:p.y };
+      moveStart = { uids: p ? [p.uid] : [], starts, wx: w.x, wy: w.y, primary: p ? p.uid : null };
+      return;
+    }
+
+    mode = "pan";
+    panStart = { sx: e.clientX, sy: e.clientY, ox: offsetX, oy: offsetY };
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!mode) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+
+    if (mode === "pan"){
+      const dx = e.clientX - panStart.sx;
+      const dy = e.clientY - panStart.sy;
+      offsetX = panStart.ox + dx;
+      offsetY = panStart.oy + dy;
+      draw();
+      return;
+    }
+
+    if (mode === "move"){
+      if (!moveStart) return;
+      const w = screenToWorld(sx,sy);
+      const dx = w.x - moveStart.wx;
+      const dy = w.y - moveStart.wy;
+
+      // v14: move all uids recorded in moveStart
+      for (const uid of (moveStart.uids || [])){
+        const s = sources.find(x=>x.uid===uid);
+        const st = moveStart.starts ? moveStart.starts[uid] : null;
+        if (!s || !st) continue;
+        s.x = Math.round(st.x + dx);
+        s.y = Math.round(st.y + dy);
+      }
+
+      // Update inputs to primary (if any)
+      const p = getPrimary();
+      if (p){
+        xInput.value = p.x;
+        yInput.value = (-p.y);
+      }
+
+      renderLegend();
+      updateSelUI();
+      draw();
+      return;
+    }
+
+    if (mode === "box"){
+      const left = Math.min(boxStart.sx, sx);
+      const top = Math.min(boxStart.sy, sy);
+      const width = Math.abs(sx - boxStart.sx);
+      const height = Math.abs(sy - boxStart.sy);
+      selectRectEl.style.left = `${left}px`;
+      selectRectEl.style.top = `${top}px`;
+      selectRectEl.style.width = `${width}px`;
+      selectRectEl.style.height = `${height}px`;
+      return;
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (!mode) return;
+
+    if (mode === "move"){
+      pushHistory();
+    }
+
+    if (mode === "box"){
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      const a = screenToWorld(boxStart.sx, boxStart.sy);
+      const b = screenToWorld(sx, sy);
+
+      const minX = Math.min(a.x, b.x);
+      const maxX = Math.max(a.x, b.x);
+      const minY = Math.min(a.y, b.y);
+      const maxY = Math.max(a.y, b.y);
+
+      pushHistory();
+      for (const s of sources){
+        const {cx,cy} = centerOf(s);
+        if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY){
+          selected.add(s.uid);
+          primaryUid = s.uid;
+          lastClickedUid = s.uid;
+        }
+      }
+
+      selectRectEl.style.display = "none";
+      renderLegend();
+      syncPrimaryEditor();
+      updateSelUI();
+      draw();
+    }
+
+    mode = null;
+  });
+
+  canvas.addEventListener("click", (e) => {
+    if (modalOpen()) return;
+    // allow click even if a transient mode was used
+
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const w = screenToWorld(sx,sy);
+    const hit = hitTest(w.x,w.y);
+
+    if (e.ctrlKey || e.metaKey){
+      if (hit) toggleSelect(hit.uid);
+      return;
+    }
+
+    if (hit){
+      selectSingle(hit.uid);
+    } else {
+      if (selected.size || selectedGroupGid){
+        clearSelection();
+      }
+    }
+  });
+
+  canvas.addEventListener("wheel", (e) => {
+    if (modalOpen()) return;
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const before = screenToWorld(sx,sy);
+
+    const delta = Math.sign(e.deltaY);
+    const factor = delta > 0 ? 0.94 : 1.06;
+    const zMin = pctToZoom(ZOOM_MIN_PCT);
+    const zMax = pctToZoom(ZOOM_MAX_PCT);
+    zoom = clamp(zoom * factor, zMin, zMax);
+
+    updateZoomUI();
+
+    const after = worldToScreen(before.x,before.y);
+    offsetX += (sx - after.x);
+    offsetY += (sy - after.y);
+    draw();
+  }, { passive:false });
+
+  function addSource(){
+    pushHistory();
+    const uid = nextUid++;
+    const id = `S${uid}`;
+    const name = `新声源 ${uid}`;
+    const defaultR = 700;
+    const x = Math.round((MAP_W/2) - defaultR);
+    const y = Math.round((MAP_H/2) - defaultR);
+    const color = COLORS[(uid-1) % COLORS.length];
+
+    sources.push({
+      uid, id, name, x, y, r: defaultR,
+      fill: color, stroke: color,
+      fillA: 0.12, strokeA: 0.90, strokeW: 2,
+      labelSize: 16
+    });
+
+    const target = groups.find(g => g.gid === selectedGroupGid) || groups[0];
+    if (target) target.uids.push(uid);
+
+    selectSingle(uid, false);
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function deleteSelected(){
+    if (selected.size === 0) return;
+    pushHistory();
+    sources = sources.filter(s => !selected.has(s.uid));
+    for (const g of groups){
+      g.uids = g.uids.filter(uid => !selected.has(uid));
+    }
+    selected.clear();
+    primaryUid = null;
+    lastClickedUid = null;
+    syncPrimaryEditor();
+    renderLegend();
+    updateSelUI();
+    draw();
+  }
+
+  function addGroup(){
+    pushHistory();
+    const gid = `g${nextGroupId++}`;
+    groups.push({ gid, name:`新分组 ${nextGroupId-1}`, uids: [] });
+    selectedGroupGid = gid;
+    renderLegend();
+  }
+
+  function toggleLeft(){
+    const collapsed = leftPanel.classList.toggle("collapsed");
+    leftSideIcon.textContent = collapsed ? ">" : "<";
+  }
+  leftSideToggle.addEventListener("click", toggleLeft);
+function applyZoomFromPct(pct){
+    const p = clamp(parseInt(pct,10) || 100, ZOOM_MIN_PCT, ZOOM_MAX_PCT);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const before = screenToWorld(w/2, h/2);
+    zoom = pctToZoom(p);
+    updateZoomUI();
+    const after = worldToScreen(before.x,before.y);
+    offsetX += (w/2 - after.x);
+    offsetY += (h/2 - after.y);
+    draw();
+  }
+
+  zoomSlider.addEventListener("input", () => {
+    const zMin = pctToZoom(ZOOM_MIN_PCT);
+    const zMax = pctToZoom(ZOOM_MAX_PCT);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const before = screenToWorld(w/2, h/2);
+    zoom = clamp(parseFloat(zoomSlider.value), zMin, zMax);
+    updateZoomUI();
+    const after = worldToScreen(before.x,before.y);
+    offsetX += (w/2 - after.x);
+    offsetY += (h/2 - after.y);
+    draw();
+  });
+
+  zoomPctInput.addEventListener("change", ()=> applyZoomFromPct(zoomPctInput.value));
+  zoomPctInput.addEventListener("keydown", (e)=>{
+    if (e.key === "Enter"){
+      e.preventDefault();
+      applyZoomFromPct(zoomPctInput.value);
+      zoomPctInput.blur();
+    }
+  });
+
+  centerBtn.addEventListener("click", () => { pushHistory(); centerOnMap(); });
+
+  overlapBtn.addEventListener("click", ()=>{
+    pushHistory();
+    overlapEnabled = !overlapEnabled;
+    overlapBtn.classList.toggle("toggled", overlapEnabled);
+    draw();
+  });
+
+  overlapAreaBtn && overlapAreaBtn.addEventListener("click", ()=>{
+    overlapAreaEnabled = !overlapAreaEnabled;
+    overlapAreaBtn.classList.toggle("active", overlapAreaEnabled);
+    if (overlapAreaEnabled){
+      overlapAreaDirty = true;
+      draw();
+      openOverlapReport();
+    }else{
+      draw();
+    }
+  });
+
+
+  [toggleMap, toggleBand, toggleGrid, toggleNames].forEach(el=>el.addEventListener("change", draw));
+
+  mapW.addEventListener("input", () => {
+    const v = parseInt(mapW.value,10);
+    if (!Number.isFinite(v) || v < 200) return;
+    pushHistory();
+    MAP_W = v;
+    centerOnMap();
+  });
+  mapH.addEventListener("input", () => {
+    const v = parseInt(mapH.value,10);
+    if (!Number.isFinite(v) || v < 200) return;
+    pushHistory();
+    MAP_H = v;
+    centerOnMap();
+  });
+  mapRot && mapRot.addEventListener("input", () => {
+    const raw = parseFloat(mapRot.value || "0");
+    if (!Number.isFinite(raw)) return;
+    // normalize to 0~360
+    let v = raw % 360;
+    if (v < 0) v += 360;
+    pushHistory();
+    MAP_ROT = v;
+    mapRot.value = Math.round(MAP_ROT);
+    draw();
+  });
+
+
+  batchLabelSize.addEventListener("input", applyBatchLabel);
+
+  nameInput.addEventListener("input", applyPrimaryNameAndGeo);
+  xInput.addEventListener("input", applyPrimaryNameAndGeo);
+  yInput.addEventListener("input", applyPrimaryNameAndGeo);
+  rInput.addEventListener("input", applyPrimaryNameAndGeo);
+
+  strokeW.addEventListener("input", ()=>{
+    const p = getPrimary();
+    if (!p) return;
+    pushHistory();
+    p.strokeW = clamp(parseInt(strokeW.value,10) || 2, 1, 8);
+    renderLegend();
+    fitAllLeftButtons();
+    draw();
+  });
+
+  bindOpacityInputs(fillPct, fillPctRange, "fill");
+  bindOpacityInputs(strokePct, strokePctRange, "stroke");
+
+  addGroupBtn.addEventListener("click", addGroup);
+  addSourceBtn.addEventListener("click", addSource);
+  delBtn.addEventListener("click", deleteSelected);
+  clearSelBtn.addEventListener("click", () => clearSelection(true));
+
+  window.addEventListener("keydown", (e) => {
+    if (modalOpen()) return;
+
+    // Ctrl+S / Cmd+S : Save project
+    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")){
+      e.preventDefault();
+      saveProject();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){
+      e.preventDefault();
+      undo();
+      return;
+    }
+
+    if (e.key === "Delete" || e.key === "Del" || e.key === "Backspace") {
+      const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : "";
+      const isEditable = document.activeElement && (
+        document.activeElement.isContentEditable ||
+        tag === "input" || tag === "textarea" || tag === "select"
+      );
+      if (isEditable) return;
+      e.preventDefault();
+      deleteSelected();
+      return;
+    }
+  });
+
+  themeBtn.addEventListener("click", () => {
+    pushHistory();
+    document.body.classList.toggle("day");
+    fitAllLeftButtons();
+    themeIcon.textContent = document.body.classList.contains("day") ? "☀️" : "🌙";
+    draw();
+  });
+
+    exportBtn && exportBtn.addEventListener("click", ()=>{ exportMapImage(); });
+
+helpBtn.addEventListener("click", ()=>openModal(helpModal));
+  closeHelp.addEventListener("click", ()=>closeModal(helpModal));
+  closeOverlapReport && closeOverlapReport.addEventListener("click", ()=>{ if (overlapReportModal) overlapReportModal.style.display="none"; });
+  overlapReportModal && overlapReportModal.addEventListener("click", (e)=>{ if(e.target===overlapReportModal){ overlapReportModal.style.display="none"; } });
+
+  const IDEA_DB = {
+    "工厂": ["发电机","液压机","机械臂","蒸汽机","风机","传送带","电机","压缩机","冷却塔","锅炉","变压器","配电柜","排风管","冲压机","车床","数控机床","焊接台","叉车报警器","警示灯蜂鸣器","金属滑轮"],
+    "军舰": ["舰桥风压","舰载发电机","雷达旋转","声呐扫频","甲板排风","钢缆绞盘","舰炮转向伺服","导弹舱通风","舱门液压","警报灯蜂鸣器","海浪反射","栏杆共振","机库风切","无线电静噪","电梯升降机","探照灯电机","锚链拖拽","舵机低鸣","水密门锁扣","排水泵"],
+    "实验室": ["排风柜","恒温箱","离心机","真空泵","液氮阀","玻璃器皿轻碰","电源稳压器","冷却风扇","警示蜂鸣器","消毒灯电流声","管路气流","门禁提示音","滴定装置","磁力搅拌器","示波器电流噪","机架风道","打印机走纸","冷库压缩机","隔离门闭合","仪器自检提示"]
+  };
+  function shuffle(arr){
+    const a = arr.slice();
+    for (let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+  function genIdeas(input){
+    const key = (input||"").trim();
+    let base = IDEA_DB[key];
+    if (!base){
+      base = [
+        `${key} 环境风噪`,`${key} 金属结构共振`,`${key} 通风系统`,`${key} 电机嗡鸣`,`${key} 设备报警器`,
+        `${key} 管路气流`,`${key} 冷却风扇`,`${key} 液压装置`,`${key} 传送机构`,`${key} 门禁提示音`,
+        `${key} 远处机械运转`,`${key} 变压器`,`${key} 泵站低频`,`${key} 排水系统`,`${key} 电子噪声`,
+        `${key} 电柜风扇`,`${key} 摩擦声`,`${key} 灯具电流声`,`${key} 回响反射`,`${key} 结构振动`
+      ];
+    }
+    return shuffle(base).slice(0,20);
+  }
+  function openIdeaModal(){
+    const text = ideaInput.value.trim();
+    const list = genIdeas(text || "工厂");
+    ideaSubtitle.textContent = `输入：${text || "工厂"}（点击“重新想”可刷新 20 个内容）`;
+    ideaList.innerHTML = "";
+    list.forEach((t, i)=>{
+      const d = document.createElement("div");
+      d.className = "listItem";
+      d.textContent = `${i+1}. ${t}`;
+      ideaList.appendChild(d);
+    });
+    openModal(ideaModal);
+  }
+  ideaBtn.addEventListener("click", openIdeaModal);
+  closeIdea.addEventListener("click", ()=>closeModal(ideaModal));
+  regenIdea.addEventListener("click", openIdeaModal);
+
+  buildColorGrid(fillGrid, (hex) => {
+    if (selected.size === 0) return;
+    pushHistory();
+    for (const uid of selected){
+      const s = getByUid(uid);
+      if (s) s.fill = hex;
+    }
+    highlightActiveColors();
+    renderLegend();
+    fitAllLeftButtons();
+    draw();
+  });
+  buildColorGrid(strokeGrid, (hex) => {
+    if (selected.size === 0) return;
+    pushHistory();
+    for (const uid of selected){
+      const s = getByUid(uid);
+      if (s) s.stroke = hex;
+    }
+    highlightActiveColors();
+    renderLegend();
+    fitAllLeftButtons();
+    draw();
+  });
+
+  function init(){
+    selected.clear();
+    primaryUid = null;
+    lastClickedUid = null;
+
+    resizeCanvas();
+    zoom = BASE_ZOOM;
+    updateZoomUI();
+    centerOnMap();
+
+    mapW.value = MAP_W;
+    mapH.value = MAP_H;
+
+    renderLegend();
+    syncPrimaryEditor();
+    updateSelUI();
+    pushHistory();
+  }
+  init();
+})();
+
+  function fitTextToButton(btn, min=9, max=12){
+    if (!btn) return;
+    btn.style.fontSize = max + "px";
+    if (btn.scrollWidth <= btn.clientWidth) return;
+    for (let fs = max; fs >= min; fs--){
+      btn.style.fontSize = fs + "px";
+      if (btn.scrollWidth <= btn.clientWidth) break;
+    }
+  }
+
+  function fitAllLeftButtons(){
+    document.querySelectorAll(".leftPanel .miniBtn").forEach(b => fitTextToButton(b, 9, 12));
+  }
+
+</script>
+</body>
+</html>
